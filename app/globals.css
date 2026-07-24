@@ -701,6 +701,44 @@ a {
   color: white;
 }
 
+.spot-toolbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.spot-toolbar-actions > p {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.compact-button {
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.spot-form {
+  margin-bottom: 28px;
+}
+
+.spot-form-heading {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+}
+
+.spot-form-heading h2 {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  margin: 7px 0 0;
+}
+
+.spot-form-heading > p {
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .profile-panel {
   display: grid;
   gap: clamp(50px, 8vw, 110px);
@@ -767,6 +805,10 @@ a {
   display: grid;
   gap: 12px;
   grid-template-columns: 0.45fr 1fr;
+}
+
+.form-row.equal {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .empty-private {
@@ -897,6 +939,12 @@ a {
     gap: 16px;
   }
 
+  .spot-toolbar-actions,
+  .spot-form-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .private-search,
   .private-search input {
     width: 100%;
@@ -907,7 +955,8 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .form-row {
+  .form-row,
+  .form-row.equal {
     grid-template-columns: 1fr;
   }
 }

@@ -41,6 +41,13 @@ type ProfileForm = {
   instagram: string;
 };
 
+type StudySpotForm = {
+  name: string;
+  location: string;
+  description: string;
+  labels: string;
+};
+
 const emptyProfile: ProfileForm = {
   fullName: "",
   year: "1",
@@ -48,6 +55,13 @@ const emptyProfile: ProfileForm = {
   courses: "",
   bio: "",
   instagram: "",
+};
+
+const emptyStudySpot: StudySpotForm = {
+  name: "",
+  location: "",
+  description: "",
+  labels: "",
 };
 
 function Brand() {
@@ -85,6 +99,8 @@ export default function Home() {
   const [dataLoading, setDataLoading] = useState(false);
   const [profileMissing, setProfileMissing] = useState(false);
   const [profile, setProfile] = useState<ProfileForm>(emptyProfile);
+  const [spotForm, setSpotForm] = useState<StudySpotForm>(emptyStudySpot);
+  const [spotFormOpen, setSpotFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [spotFilter, setSpotFilter] = useState("All");
   const [toast, setToast] = useState("");
@@ -331,6 +347,44 @@ export default function Home() {
     } catch (error) {
       setAuthError(
         error instanceof Error ? error.message : "Could not save your profile.",
+      );
+    } finally {
+      setDataLoading(false);
+    }
+  }
+
+  async function submitStudySpot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) return;
+    setDataLoading(true);
+    setAuthError("");
+    try {
+      const response = await authorizedFetch("/study-spots/", {
+        method: "POST",
+        body: JSON.stringify({
+          name: spotForm.name.trim(),
+          location: spotForm.location.trim(),
+          description: spotForm.description.trim(),
+          labels: spotForm.labels
+            .split(",")
+            .map((label) => label.trim())
+            .filter(Boolean)
+            .slice(0, 8),
+          added_by: user.uid,
+          is_public: true,
+        }),
+      });
+      if (!response.ok) throw new Error("Could not submit the study spot.");
+
+      setSpotForm(emptyStudySpot);
+      setSpotFormOpen(false);
+      showToast("Study spot submitted.");
+      await loadPrivateData(user);
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Could not submit the study spot.",
       );
     } finally {
       setDataLoading(false);
@@ -592,6 +646,7 @@ export default function Home() {
             <label>
               Instagram (optional)
               <input
+                maxLength={200}
                 value={profile.instagram}
                 onChange={(event) =>
                   setProfile({ ...profile, instagram: event.target.value })
@@ -646,7 +701,7 @@ export default function Home() {
                     onClick={() =>
                       showToast(
                         buddy.instagram_tag
-                          ? `Contact: ${buddy.instagram_tag}`
+                          ? `Instagram: ${buddy.instagram_tag}`
                           : "This student has not shared contact details.",
                       )
                     }
@@ -679,8 +734,91 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <p>{filteredSpots.length} spots</p>
+            <div className="spot-toolbar-actions">
+              <p>{filteredSpots.length} spots</p>
+              <button
+                className="button primary compact-button"
+                onClick={() => setSpotFormOpen((current) => !current)}
+                aria-expanded={spotFormOpen}
+              >
+                {spotFormOpen ? "Cancel" : "Suggest a spot"}
+              </button>
+            </div>
           </div>
+          {spotFormOpen && (
+            <form
+              className="profile-form spot-form"
+              onSubmit={submitStudySpot}
+            >
+              <div className="spot-form-heading">
+                <div>
+                  <p className="eyebrow">New study spot</p>
+                  <h2>Suggest a place.</h2>
+                </div>
+                <p>Submissions are visible to signed-in Waseda members.</p>
+              </div>
+              <div className="form-row equal">
+                <label>
+                  Spot name
+                  <input
+                    required
+                    maxLength={120}
+                    value={spotForm.name}
+                    onChange={(event) =>
+                      setSpotForm({ ...spotForm, name: event.target.value })
+                    }
+                    placeholder="Central Library"
+                  />
+                </label>
+                <label>
+                  Location
+                  <input
+                    required
+                    maxLength={180}
+                    value={spotForm.location}
+                    onChange={(event) =>
+                      setSpotForm({
+                        ...spotForm,
+                        location: event.target.value,
+                      })
+                    }
+                    placeholder="Building 18, 2nd floor"
+                  />
+                </label>
+              </div>
+              <label>
+                Description
+                <textarea
+                  required
+                  maxLength={1200}
+                  rows={3}
+                  value={spotForm.description}
+                  onChange={(event) =>
+                    setSpotForm({
+                      ...spotForm,
+                      description: event.target.value,
+                    })
+                  }
+                  placeholder="What makes this a useful place to study?"
+                />
+              </label>
+              <label>
+                Labels
+                <input
+                  maxLength={240}
+                  value={spotForm.labels}
+                  onChange={(event) =>
+                    setSpotForm({ ...spotForm, labels: event.target.value })
+                  }
+                  placeholder="Quiet, Outlets, Group-friendly"
+                />
+                <small>Separate labels with commas.</small>
+              </label>
+              <button className="button primary" type="submit">
+                Submit spot
+              </button>
+            </form>
+          )}
           {filteredSpots.length ? (
             <div className="private-grid spots">
               {filteredSpots.map((spot) => (
