@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+@theme {
+  --color-waseda-bg: #FDFBF7;
+  --color-waseda-surface: #FFFFFF;
+  --color-waseda-text: #111111;
+  --color-waseda-border: #E6E6E6;
+  
+  --color-waseda-mauve: #C59B9B;
+  --color-waseda-blue: #A5C3D1;
+  
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+}
+
+@utility gradient-waseda {
+  background: linear-gradient(135deg, var(--color-waseda-mauve), var(--color-waseda-blue));
+}
+
+@utility shadow-waseda {
+  box-shadow: 0px 4px 12px rgba(0,0,0,0.03);
+}
+
+body {
+  background-color: var(--color-waseda-bg);
+  color: var(--color-waseda-text);
+  font-family: var(--font-sans);
+}
