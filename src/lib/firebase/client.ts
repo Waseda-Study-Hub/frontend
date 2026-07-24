@@ -8,10 +8,22 @@ const config = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const firebaseConfigured = Object.values(config).every(
-  (value) => value && !value.startsWith("replace"),
+const firebaseConfigLooksValid = Boolean(
+  config.apiKey?.startsWith("AIza") &&
+  config.authDomain?.includes(".") &&
+  config.projectId &&
+  /^[a-z0-9-]+$/.test(config.projectId) &&
+  config.appId?.includes(":"),
 );
 
-export const auth = firebaseConfigured
-  ? getAuth(getApps()[0] ?? initializeApp(config))
-  : null;
+let configuredAuth: ReturnType<typeof getAuth> | null = null;
+if (firebaseConfigLooksValid) {
+  try {
+    configuredAuth = getAuth(getApps()[0] ?? initializeApp(config));
+  } catch {
+    configuredAuth = null;
+  }
+}
+
+export const firebaseConfigured = Boolean(configuredAuth);
+export const auth = configuredAuth;

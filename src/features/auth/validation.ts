@@ -8,7 +8,10 @@ const domains = (
 
 export const allowedEmailDomains = domains;
 export const isAllowedEmail = (email: string) => {
-  const domain = email.trim().toLowerCase().split("@")[1];
+  const normalized = email.trim().toLowerCase();
+  const at = normalized.lastIndexOf("@");
+  if (at <= 0 || at !== normalized.indexOf("@")) return false;
+  const domain = normalized.slice(at + 1);
   return Boolean(domain && domains.includes(domain));
 };
 
@@ -19,7 +22,7 @@ export const mapAuthError = (code: string) => {
     "auth/too-many-requests": "Too many attempts. Please try again later.",
     "auth/network-request-failed": "Check your connection and try again.",
     "auth/user-disabled": "This account has been disabled.",
-    "auth/weak-password": "Use a password with at least six characters.",
+    "auth/weak-password": "Use a password with at least eight characters.",
   };
   return messages[code] ?? "Authentication failed. Please try again.";
 };

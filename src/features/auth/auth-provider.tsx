@@ -7,6 +7,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  reload,
   type User,
 } from "firebase/auth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,10 +18,11 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   configured: boolean;
-  signIn(email: string, password: string): Promise<void>;
-  signUp(email: string, password: string): Promise<void>;
+  signIn(email: string, password: string): Promise<User>;
+  signUp(email: string, password: string): Promise<User>;
   resetPassword(email: string): Promise<void>;
   resendVerification(): Promise<void>;
+  refreshVerification(): Promise<boolean>;
   signOut(): Promise<void>;
   token(): Promise<string | undefined>;
 };
@@ -47,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       configured: firebaseConfigured,
       async signIn(email, password) {
         if (!auth) throw new Error("Firebase is not configured.");
-        await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        return result.user;
       },
       async signUp(email, password) {
         if (!auth) throw new Error("Firebase is not configured.");
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password,
         );
         await sendEmailVerification(result.user);
+        return result.user;
       },
       async resetPassword(email) {
         if (!auth) throw new Error("Firebase is not configured.");
@@ -65,6 +69,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async resendVerification() {
         if (!user) throw new Error("Sign in first.");
         await sendEmailVerification(user);
+      },
+      async refreshVerification() {
+        if (!user) return false;
+        await reload(user);
+        const refreshedUser = auth?.currentUser ?? user;
+        if (refreshedUser.emailVerified) {
+          // The backend checks the email_verified token claim, not only the
+          // mutable Firebase User object. Force a fresh ID token after reload.
+          await refreshedUser.getIdToken(true);
+        }
+        setUser(refreshedUser);
+        return refreshedUser.emailVerified;
       },
       async signOut() {
         queryClient.clear();

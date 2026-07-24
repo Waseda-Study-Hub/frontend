@@ -18,14 +18,19 @@ export default function Privacy() {
         </p>
         <p>
           Firebase Authentication handles account credentials. The frontend
-          sends a Firebase ID token to the API when available, but the current
-          backend does not yet verify it; production deployment must wait until
-          the backend gap is closed.
+          sends a short-lived Firebase ID token to the API. The secure backend
+          verifies the token, email-verification claim, and exact permitted
+          Waseda domain before serving student data.
         </p>
         <p>
-          Directory views intentionally omit contact fields. Contact sharing
-          remains unavailable until acceptance authorization is enforced by the
-          API.
+          Directory responses contain public academic fields only. Contact
+          values are returned only to participants in an accepted request and
+          only for methods explicitly selected for that connection.
+        </p>
+        <p>
+          Private and pending study-spot contributions are never returned by the
+          public directory. Authentication and visibility are enforced by the
+          API, not by hiding browser controls.
         </p>
       </article>
     </main>

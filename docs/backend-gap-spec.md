@@ -1,24 +1,44 @@
-# Backend production gap specification
+# Backend rollout gaps
 
-## Authentication and authorization
+The original unauthenticated backend gaps are resolved on
+`feat/secure-study-hub-contract`. That branch adds verified Firebase bearer
+authentication, exact email-domain enforcement, `/users/me`, public/private
+response models, study requests, authorized contact sharing, moderated/private
+spots, anonymous crowd reports, validated CORS, tests, and a checked-in OpenAPI
+artifact.
 
-Verify `Authorization: Bearer <Firebase ID token>` with Firebase Admin and return a typed principal (`uid`, verified email, `email_verified`). Reject missing/invalid tokens with 401 and unverified/non-allowed domains with 403. Never accept UID or `added_by` as authority from a body or path. Move credential path, project/database ID, origins, and allowed domains into validated settings. Add CORS with an explicit origin allowlist.
+No core frontend action uses the legacy unauthenticated routes or fabricates a
+successful write.
 
-Use `/users/me` for profile mutation. Return a privacy-safe `PublicProfile` for discovery that excludes full name and all contact fields.
+## Required before deployment
 
-## Requests and contact sharing
+1. Merge and deploy the backend pull request before the frontend pull request.
+2. Configure a real Firebase project and backend Application Default
+   Credentials or `FIREBASE_CREDENTIALS_PATH`.
+3. Configure production `CORS_ORIGINS`, `ALLOWED_EMAIL_DOMAINS`,
+   `FIREBASE_PROJECT_ID`, and `FIRESTORE_DATABASE_ID`.
+4. Apply the Firestore migration and index guidance in the backend
+   `docs/firestore-schema.md`.
+5. Run an authorized cloud-backed smoke test for sign-up, email verification,
+   profile save, request acceptance/contact reveal, private-spot isolation, and
+   public contribution moderation.
 
-Add `study_requests` with `id`, sender/recipient UIDs, optional course/topic, message (1-500), selected contact methods, status (`pending|accepted|declined|cancelled|expired`), timestamps, and version.
+These checks require credentials and production origins that are intentionally
+not stored in either repository.
 
-- `POST /requests`: derive sender from token; reject self-request; 409 duplicate pending pair.
-- `GET /requests?box=incoming|sent|connected&cursor=&limit=`.
-- `POST /requests/{id}/accept`, `/decline`, `/cancel`: enforce role and atomic state transition.
-- `GET /requests/{id}/connection`: accepted participants only; return only contact methods authorized for that connection.
+## Remaining product and operations work
 
-Use Firestore transactions/preconditions. Test token rejection, domain verification, cross-user denial, self/duplicate races, invalid transitions, participant-only reads, hidden contacts before acceptance, and selected-only contacts after acceptance.
+- Public spot contributions start as `pending`. Approval is currently an
+  operational Firestore action; no moderator role, audit log, or moderation UI
+  has been defined.
+- The MVP renders author-only contribution history and returned moderation
+  states. It does not expose moderation controls because no moderator role has
+  been defined.
+- Application-level write throttling is not implemented. The frontend handles
+  429 safely, but production should add gateway or application rate limits
+  before a broad launch.
+- Image upload, favorites, maps, messaging, push notifications, and advanced
+  matching remain intentionally out of scope.
 
-## Study spots
-
-Derive `added_by` from the principal. Add moderation policy, structured campus/building/floor, amenity booleans, noise level, timestamps, and cursor pagination. Add authenticated crowd reports with enum status and server timestamp. Do not expose reporter identity.
-
-Set aligned limits, forbid extra fields, return stable errors, avoid raw exception strings, add write rate limiting, and fix the recommendations route so its intentional 404 is not converted to 500.
+None of these items permits private data to enter a public response. They are
+release-operations or post-MVP capabilities, not fake frontend success paths.

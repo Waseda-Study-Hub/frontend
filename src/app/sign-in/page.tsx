@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/features/auth/auth-provider";
 import { isAllowedEmail, mapAuthError } from "@/features/auth/validation";
@@ -16,12 +16,31 @@ export default function SignInPage() {
   const [show, setShow] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [fieldError, setFieldError] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  useEffect(() => {
+    if (!auth.loading && auth.user) {
+      router.replace(auth.user.emailVerified ? "/dashboard" : "/verify-email");
+    }
+  }, [auth.loading, auth.user, router]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setMessage("");
-    if (!isAllowedEmail(email))
-      return setMessage("Use an allowed Waseda student email domain.");
+    setFieldError({});
+    if (!isAllowedEmail(email)) {
+      setFieldError({ email: "Use an allowed Waseda student email domain." });
+      return;
+    }
+    if (mode !== "reset" && password.length < 8) {
+      setFieldError({
+        password: "Use at least 8 characters for your password.",
+      });
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "reset") {
@@ -29,10 +48,12 @@ export default function SignInPage() {
         setMessage("Password reset email sent. Check your inbox.");
       } else if (mode === "signup") {
         await auth.signUp(email, password);
-        setMessage("Account created. Verify your email before continuing.");
+        router.replace("/verify-email");
       } else {
-        await auth.signIn(email, password);
-        router.replace("/dashboard");
+        const signedInUser = await auth.signIn(email, password);
+        router.replace(
+          signedInUser.emailVerified ? "/dashboard" : "/verify-email",
+        );
       }
     } catch (error) {
       setMessage(
@@ -85,9 +106,15 @@ export default function SignInPage() {
             </p>
           </div>
           {!auth.configured && (
-            <div className="notice" role="status">
-              Authentication is not configured in this environment. Add the
-              public Firebase variables from <code>.env.example</code>.
+            <div className="notice" role="alert">
+              Authentication is unavailable. This app fails closed until
+              Firebase is configured.
+              {process.env.NODE_ENV === "development" && (
+                <>
+                  {" "}
+                  Add the public web variables from <code>.env.example</code>.
+                </>
+              )}
             </div>
           )}
           <form className="stack" onSubmit={submit}>
@@ -98,8 +125,15 @@ export default function SignInPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={Boolean(fieldError.email)}
+                aria-describedby={fieldError.email ? "email-error" : undefined}
                 required
               />
+              {fieldError.email && (
+                <span className="field-error" id="email-error">
+                  {fieldError.email}
+                </span>
+              )}
             </label>
             {mode !== "reset" && (
               <label className="field">
@@ -111,8 +145,12 @@ export default function SignInPage() {
                       mode === "signup" ? "new-password" : "current-password"
                     }
                     value={password}
-                    minLength={6}
+                    minLength={8}
                     onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={Boolean(fieldError.password)}
+                    aria-describedby={
+                      fieldError.password ? "password-error" : undefined
+                    }
                     required
                   />
                   <button
@@ -123,6 +161,14 @@ export default function SignInPage() {
                     {show ? "Hide" : "Show"}
                   </button>
                 </div>
+                {fieldError.password && (
+                  <span className="field-error" id="password-error">
+                    {fieldError.password}
+                  </span>
+                )}
+                {mode === "signup" && (
+                  <small className="muted">Use 8 or more characters.</small>
+                )}
               </label>
             )}
             {message && (
@@ -137,7 +183,10 @@ export default function SignInPage() {
                 {message}
               </p>
             )}
-            <button className="button" disabled={busy || !auth.configured}>
+            <button
+              className="button"
+              disabled={busy || auth.loading || !auth.configured}
+            >
               {busy
                 ? "Please wait…"
                 : mode === "signup"
