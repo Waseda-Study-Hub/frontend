@@ -129,11 +129,9 @@ export default function Home() {
             }
           },
         );
-
-        await client.getRedirectResult(client.auth);
       } catch {
         if (active) {
-          setAuthError("Google sign-in did not finish. Please try again.");
+          setAuthError("Could not start Google sign-in. Please try again.");
           setAuthLoading(false);
         }
       }
@@ -258,18 +256,41 @@ export default function Home() {
 
   async function handleGoogleSignIn() {
     setAuthError("");
-    const client = await getFirebaseClient();
-    if (!client) {
-      setAuthError(
-        "Firebase sign-in needs the project’s web configuration first.",
+    try {
+      const client = await getFirebaseClient();
+      if (!client) {
+        setAuthError(
+          "Firebase sign-in needs the project’s web configuration first.",
+        );
+        return;
+      }
+
+      client.provider.setCustomParameters({ prompt: "select_account" });
+      const result = await client.signInWithPopup(
+        client.auth,
+        client.provider,
       );
-      return;
+      const email = result.user.email ?? "";
+
+      if (!isAllowedWasedaEmail(email)) {
+        await client.signOut(client.auth);
+        setAuthError("Use an official Waseda email address.");
+      }
+    } catch (error) {
+      const code =
+        typeof error === "object" && error && "code" in error
+          ? String(error.code)
+          : "";
+
+      if (code === "auth/popup-closed-by-user") return;
+      if (code === "auth/popup-blocked") {
+        setAuthError(
+          "Your browser blocked the Google sign-in window. Allow pop-ups and try again.",
+        );
+        return;
+      }
+      setAuthError("Google sign-in did not finish. Please try again.");
     }
-    client.provider.setCustomParameters({
-      prompt: "select_account",
-      hd: "waseda.jp",
-    });
-    await client.signInWithRedirect(client.auth, client.provider);
   }
 
   async function handleSignOut() {

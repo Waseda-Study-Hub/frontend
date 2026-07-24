@@ -1,10 +1,9 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   getAuth,
-  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
 
@@ -36,9 +35,8 @@ function createFirebaseClient(config: PublicRuntimeConfig["firebase"]) {
   return {
     auth: getAuth(app),
     provider: new GoogleAuthProvider(),
-    getRedirectResult,
     onAuthStateChanged,
-    signInWithRedirect,
+    signInWithPopup,
     signOut,
   };
 }
