@@ -48,6 +48,11 @@ type StudySpotForm = {
   labels: string;
 };
 
+type ContactModal = {
+  name: string;
+  instagram: string | null;
+};
+
 const emptyProfile: ProfileForm = {
   fullName: "",
   year: "1",
@@ -101,8 +106,16 @@ export default function Home() {
   const [profile, setProfile] = useState<ProfileForm>(emptyProfile);
   const [spotForm, setSpotForm] = useState<StudySpotForm>(emptyStudySpot);
   const [spotFormOpen, setSpotFormOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [buddyFiltersOpen, setBuddyFiltersOpen] = useState(false);
+  const [buddyNameQuery, setBuddyNameQuery] = useState("");
+  const [buddyYear, setBuddyYear] = useState("All");
+  const [buddyMajorQuery, setBuddyMajorQuery] = useState("");
+  const [buddyCourseQuery, setBuddyCourseQuery] = useState("");
+  const [spotFiltersOpen, setSpotFiltersOpen] = useState(false);
+  const [spotNameQuery, setSpotNameQuery] = useState("");
+  const [spotLocationQuery, setSpotLocationQuery] = useState("");
   const [spotFilter, setSpotFilter] = useState("All");
+  const [contactModal, setContactModal] = useState<ContactModal | null>(null);
   const [toast, setToast] = useState("");
 
   useEffect(() => {
@@ -165,34 +178,98 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, apiBaseUrl]);
 
-  const filteredBuddies = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return buddies;
-    return buddies.filter((buddy) =>
-      [
-        buddy.full_name,
-        buddy.major,
-        buddy.match_reason,
-        ...buddy.courses,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [buddies, query]);
+  useEffect(() => {
+    if (!contactModal) return;
 
-  const spotLabels = useMemo(
-    () => [
-      "All",
-      ...Array.from(new Set(spots.flatMap((spot) => spot.labels))).slice(0, 5),
-    ],
-    [spots],
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setContactModal(null);
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [contactModal]);
+
+  const filteredBuddies = useMemo(() => {
+    const nameTerm = buddyNameQuery.trim().toLowerCase();
+    const majorTerm = buddyMajorQuery.trim().toLowerCase();
+    const courseTerm = buddyCourseQuery.trim().toLowerCase();
+
+    return buddies.filter((buddy) => {
+      const matchesName =
+        !nameTerm ||
+        buddy.full_name.toLowerCase().includes(nameTerm) ||
+        buddy.username.toLowerCase().includes(nameTerm);
+      const matchesYear =
+        buddyYear === "All" || String(buddy.year) === buddyYear;
+      const matchesMajor =
+        !majorTerm || buddy.major.toLowerCase().includes(majorTerm);
+      const matchesCourse =
+        !courseTerm ||
+        buddy.courses.some((course) =>
+          course.toLowerCase().includes(courseTerm),
+        );
+
+      return matchesName && matchesYear && matchesMajor && matchesCourse;
+    });
+  }, [
+    buddies,
+    buddyCourseQuery,
+    buddyMajorQuery,
+    buddyNameQuery,
+    buddyYear,
+  ]);
+
+  const buddyYears = useMemo(
+    () =>
+      Array.from(new Set(buddies.map((buddy) => buddy.year))).sort(
+        (a, b) => a - b,
+      ),
+    [buddies],
   );
 
-  const filteredSpots =
-    spotFilter === "All"
-      ? spots
-      : spots.filter((spot) => spot.labels.includes(spotFilter));
+  const buddyFilterCount = [
+    buddyNameQuery.trim(),
+    buddyYear === "All" ? "" : buddyYear,
+    buddyMajorQuery.trim(),
+    buddyCourseQuery.trim(),
+  ].filter(Boolean).length;
+
+  const spotLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    spots.flatMap((spot) => spot.labels).forEach((rawLabel) => {
+      const label = rawLabel.trim();
+      if (!label) return;
+      const key = label.toLowerCase();
+      if (!labels.has(key)) labels.set(key, label);
+    });
+    return Array.from(labels.values()).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
+  }, [spots]);
+
+  const filteredSpots = useMemo(() => {
+    const nameTerm = spotNameQuery.trim().toLowerCase();
+    const locationTerm = spotLocationQuery.trim().toLowerCase();
+    const labelTerm = spotFilter.toLowerCase();
+
+    return spots.filter((spot) => {
+      const matchesName =
+        !nameTerm || spot.name.toLowerCase().includes(nameTerm);
+      const matchesLocation =
+        !locationTerm || spot.location.toLowerCase().includes(locationTerm);
+      const matchesLabel =
+        spotFilter === "All" ||
+        spot.labels.some((label) => label.toLowerCase() === labelTerm);
+
+      return matchesName && matchesLocation && matchesLabel;
+    });
+  }, [spots, spotFilter, spotLocationQuery, spotNameQuery]);
+
+  const spotFilterCount = [
+    spotNameQuery.trim(),
+    spotLocationQuery.trim(),
+    spotFilter === "All" ? "" : spotFilter,
+  ].filter(Boolean).length;
 
   function showToast(message: string) {
     setToast(message);
@@ -583,7 +660,10 @@ export default function Home() {
               Your major and courses are used to find relevant study buddies.
             </p>
           </div>
-          <form className="profile-form" onSubmit={saveProfile}>
+          <form
+            className="profile-form buddy-profile-form"
+            onSubmit={saveProfile}
+          >
             <label>
               Full name
               <input
@@ -663,17 +743,91 @@ export default function Home() {
 
       {!dataLoading && view === "buddies" && !profileMissing && (
         <section className="private-panel">
-          <div className="private-toolbar">
-            <label className="private-search">
-              <span>Search</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Course, major, or name"
-              />
-            </label>
-            <p>{filteredBuddies.length} matches</p>
+          <div className="private-toolbar filter-toolbar">
+            <div className="filter-summary">
+              <span>Study buddy results</span>
+              <strong>{filteredBuddies.length} matches</strong>
+            </div>
+            <button
+              className={`filter-toggle ${
+                buddyFiltersOpen || buddyFilterCount ? "active" : ""
+              }`}
+              type="button"
+              onClick={() => setBuddyFiltersOpen((current) => !current)}
+              aria-expanded={buddyFiltersOpen}
+              aria-controls="buddy-filters"
+            >
+              Filters{buddyFilterCount ? ` (${buddyFilterCount})` : ""}
+              <span aria-hidden="true">{buddyFiltersOpen ? "−" : "+"}</span>
+            </button>
           </div>
+          {buddyFiltersOpen && (
+            <section
+              className="expanded-filters"
+              id="buddy-filters"
+              aria-label="Study buddy filters"
+            >
+              <div className="filter-fields buddy-filter-fields">
+                <label>
+                  Name
+                  <input
+                    value={buddyNameQuery}
+                    onChange={(event) =>
+                      setBuddyNameQuery(event.target.value)
+                    }
+                    placeholder="Search name"
+                  />
+                </label>
+                <label>
+                  Year
+                  <select
+                    value={buddyYear}
+                    onChange={(event) => setBuddyYear(event.target.value)}
+                  >
+                    <option value="All">All years</option>
+                    {buddyYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year === 5 ? "Graduate" : `Year ${year}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Major
+                  <input
+                    value={buddyMajorQuery}
+                    onChange={(event) =>
+                      setBuddyMajorQuery(event.target.value)
+                    }
+                    placeholder="Search major"
+                  />
+                </label>
+                <label>
+                  Course
+                  <input
+                    value={buddyCourseQuery}
+                    onChange={(event) =>
+                      setBuddyCourseQuery(event.target.value)
+                    }
+                    placeholder="Search course"
+                  />
+                </label>
+              </div>
+              <button
+                className="clear-filter-button"
+                type="button"
+                onClick={() => {
+                  setBuddyNameQuery("");
+                  setBuddyYear("All");
+                  setBuddyMajorQuery("");
+                  setBuddyCourseQuery("");
+                }}
+                disabled={!buddyFilterCount}
+              >
+                Clear filters
+              </button>
+            </section>
+          )}
           {filteredBuddies.length ? (
             <div className="private-grid">
               {filteredBuddies.map((buddy) => (
@@ -699,11 +853,10 @@ export default function Home() {
                   <button
                     className="outline-button"
                     onClick={() =>
-                      showToast(
-                        buddy.instagram_tag
-                          ? `Instagram: ${buddy.instagram_tag}`
-                          : "This student has not shared contact details.",
-                      )
+                      setContactModal({
+                        name: buddy.full_name,
+                        instagram: buddy.instagram_tag ?? null,
+                      })
                     }
                   >
                     Contact
@@ -722,22 +875,27 @@ export default function Home() {
 
       {!dataLoading && view === "spots" && !profileMissing && (
         <section className="private-panel">
-          <div className="private-toolbar">
-            <div className="filter-pills">
-              {spotLabels.map((label) => (
-                <button
-                  key={label}
-                  className={spotFilter === label ? "active" : ""}
-                  onClick={() => setSpotFilter(label)}
-                >
-                  {label}
-                </button>
-              ))}
+          <div className="private-toolbar filter-toolbar">
+            <div className="filter-summary">
+              <span>Study spot results</span>
+              <strong>{filteredSpots.length} spots</strong>
             </div>
             <div className="spot-toolbar-actions">
-              <p>{filteredSpots.length} spots</p>
+              <button
+                className={`filter-toggle ${
+                  spotFiltersOpen || spotFilterCount ? "active" : ""
+                }`}
+                type="button"
+                onClick={() => setSpotFiltersOpen((current) => !current)}
+                aria-expanded={spotFiltersOpen}
+                aria-controls="spot-filters"
+              >
+                Filters{spotFilterCount ? ` (${spotFilterCount})` : ""}
+                <span aria-hidden="true">{spotFiltersOpen ? "−" : "+"}</span>
+              </button>
               <button
                 className="button primary compact-button"
+                type="button"
                 onClick={() => setSpotFormOpen((current) => !current)}
                 aria-expanded={spotFormOpen}
               >
@@ -745,6 +903,63 @@ export default function Home() {
               </button>
             </div>
           </div>
+          {spotFiltersOpen && (
+            <section
+              className="expanded-filters"
+              id="spot-filters"
+              aria-label="Study spot filters"
+            >
+              <div className="filter-fields spot-filter-fields">
+                <label>
+                  Spot name
+                  <input
+                    value={spotNameQuery}
+                    onChange={(event) =>
+                      setSpotNameQuery(event.target.value)
+                    }
+                    placeholder="Search spot name"
+                  />
+                </label>
+                <label>
+                  Location
+                  <input
+                    value={spotLocationQuery}
+                    onChange={(event) =>
+                      setSpotLocationQuery(event.target.value)
+                    }
+                    placeholder="Building, campus, or area"
+                  />
+                </label>
+              </div>
+              <div className="filter-label-section">
+                <p>Labels</p>
+                <div className="filter-pills">
+                  {["All", ...spotLabels].map((label) => (
+                    <button
+                      key={label}
+                      className={spotFilter === label ? "active" : ""}
+                      type="button"
+                      onClick={() => setSpotFilter(label)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                className="clear-filter-button"
+                type="button"
+                onClick={() => {
+                  setSpotNameQuery("");
+                  setSpotLocationQuery("");
+                  setSpotFilter("All");
+                }}
+                disabled={!spotFilterCount}
+              >
+                Clear filters
+              </button>
+            </section>
+          )}
           {spotFormOpen && (
             <form
               className="profile-form spot-form"
@@ -823,11 +1038,6 @@ export default function Home() {
             <div className="private-grid spots">
               {filteredSpots.map((spot) => (
                 <article className="private-card spot" key={spot.id}>
-                  <div className="spot-shape" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
-                  </div>
                   <p className="location-label">{spot.location}</p>
                   <h2>{spot.name}</h2>
                   <p className="card-description">{spot.description}</p>
@@ -846,6 +1056,50 @@ export default function Home() {
             </div>
           )}
         </section>
+      )}
+
+      {contactModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setContactModal(null)}
+          role="presentation"
+        >
+          <section
+            className="contact-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contact-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              type="button"
+              onClick={() => setContactModal(null)}
+              aria-label="Close contact details"
+            >
+              ×
+            </button>
+            <p className="eyebrow">Study buddy contact</p>
+            <h2 id="contact-modal-title">Contact {contactModal.name}</h2>
+            {contactModal.instagram ? (
+              <div className="contact-detail">
+                <span>Instagram</span>
+                <strong>{contactModal.instagram}</strong>
+              </div>
+            ) : (
+              <p className="contact-unavailable">
+                This student has not shared contact details.
+              </p>
+            )}
+            <button
+              className="button primary modal-action"
+              type="button"
+              onClick={() => setContactModal(null)}
+            >
+              Close
+            </button>
+          </section>
+        </div>
       )}
 
       <div className={`toast ${toast ? "show" : ""}`} role="status">
