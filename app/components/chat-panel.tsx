@@ -6,12 +6,15 @@ import {
   ensureConversation,
   otherParticipant,
   sendChatMessage,
+  setConversationArchived,
+  setConversationBlocked,
   subscribeToConversations,
   subscribeToMessages,
   type ChatMessage,
   type ConversationSummary,
 } from "../lib/chat";
 import { getFirebaseClient } from "../lib/firebase";
+import type { ReportTarget } from "../lib/reports";
 
 export type ChatTarget = {
   uid: string;
@@ -22,6 +25,7 @@ type ChatPanelProps = {
   user: User;
   currentUserName: string;
   target: ChatTarget | null;
+  onReport: (target: ReportTarget) => void;
 };
 
 function formatMessageTime(value: Date | null) {
@@ -51,6 +55,7 @@ export default function ChatPanel({
   user,
   currentUserName,
   target,
+  onReport,
 }: ChatPanelProps) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
@@ -65,6 +70,12 @@ export default function ChatPanel({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [openOptionsId, setOpenOptionsId] = useState<string | null>(null);
+  const [conversationActionId, setConversationActionId] = useState<
+    string | null
+  >(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -84,7 +95,13 @@ export default function ChatPanel({
             if (!active) return;
             setConversations(next);
             setActiveConversationId(
-              (current) => current ?? next[0]?.id ?? null,
+              (current) =>
+                current ??
+                next.find(
+                  (conversation) =>
+                    !conversation.archivedBy.includes(user.uid),
+                )?.id ??
+                null,
             );
             setLoading(false);
           },
@@ -128,7 +145,14 @@ export default function ChatPanel({
           { uid: user.uid, name: currentUserName },
           target,
         );
+        await setConversationArchived(
+          client.db,
+          conversationId,
+          user.uid,
+          false,
+        );
         if (!active) return;
+        setShowArchived(false);
         setActiveConversationId(conversationId);
         setActiveName(target.name);
       } catch {
@@ -145,6 +169,15 @@ export default function ChatPanel({
       active = false;
     };
   }, [currentUserName, target, user.uid]);
+
+  useEffect(() => {
+    if (!openOptionsId) return;
+    function closeOptions(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpenOptionsId(null);
+    }
+    window.addEventListener("keydown", closeOptions);
+    return () => window.removeEventListener("keydown", closeOptions);
+  }, [openOptionsId]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -209,13 +242,108 @@ export default function ChatPanel({
     [activeConversationId, conversations],
   );
 
+  const visibleConversations = useMemo(
+    () =>
+      conversations.filter(
+        (conversation) =>
+          conversation.archivedBy.includes(user.uid) === showArchived,
+      ),
+    [conversations, showArchived, user.uid],
+  );
+
   const threadName = activeConversation
     ? otherParticipant(activeConversation, user.uid).name
     : activeName || "Conversation";
 
+  const conversationBlocked = Boolean(activeConversation?.blockedBy.length);
+  const blockedByMe = Boolean(
+    activeConversation?.blockedBy.includes(user.uid),
+  );
+
+  function selectMailbox(archived: boolean) {
+    setShowArchived(archived);
+    setOpenOptionsId(null);
+    const next = conversations.find(
+      (conversation) =>
+        conversation.archivedBy.includes(user.uid) === archived,
+    );
+    setActiveConversationId(next?.id ?? null);
+    if (next) {
+      setActiveName(otherParticipant(next, user.uid).name);
+    }
+  }
+
+  async function changeArchive(
+    conversation: ConversationSummary,
+    archived: boolean,
+  ) {
+    setConversationActionId(conversation.id);
+    setError("");
+    try {
+      const client = await getFirebaseClient();
+      if (!client) throw new Error("Firebase chat is not configured.");
+      await setConversationArchived(
+        client.db,
+        conversation.id,
+        user.uid,
+        archived,
+      );
+      setOpenOptionsId(null);
+      setStatusMessage(archived ? "Conversation archived." : "Conversation restored.");
+      window.setTimeout(() => setStatusMessage(""), 2600);
+
+      if (activeConversationId === conversation.id) {
+        const next = visibleConversations.find(
+          (candidate) => candidate.id !== conversation.id,
+        );
+        setActiveConversationId(next?.id ?? null);
+        if (next) setActiveName(otherParticipant(next, user.uid).name);
+      }
+    } catch {
+      setError("Could not update this conversation.");
+    } finally {
+      setConversationActionId(null);
+    }
+  }
+
+  async function changeBlock(
+    conversation: ConversationSummary,
+    blocked: boolean,
+  ) {
+    const other = otherParticipant(conversation, user.uid);
+    if (
+      blocked &&
+      !window.confirm(
+        `Block ${other.name}? Neither person will be able to send messages until you unblock them.`,
+      )
+    ) {
+      return;
+    }
+
+    setConversationActionId(conversation.id);
+    setError("");
+    try {
+      const client = await getFirebaseClient();
+      if (!client) throw new Error("Firebase chat is not configured.");
+      await setConversationBlocked(
+        client.db,
+        conversation.id,
+        user.uid,
+        blocked,
+      );
+      setOpenOptionsId(null);
+      setStatusMessage(blocked ? "Conversation blocked." : "Conversation unblocked.");
+      window.setTimeout(() => setStatusMessage(""), 2600);
+    } catch {
+      setError("Could not update the block setting.");
+    } finally {
+      setConversationActionId(null);
+    }
+  }
+
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!activeConversationId || !draft.trim()) return;
+    if (!activeConversationId || !draft.trim() || conversationBlocked) return;
 
     setSending(true);
     setError("");
@@ -245,50 +373,142 @@ export default function ChatPanel({
           {error}
         </div>
       )}
+      {statusMessage && (
+        <div className="chat-status" role="status">
+          {statusMessage}
+        </div>
+      )}
       <div className="chat-shell">
         <aside className="conversation-sidebar">
           <div className="conversation-sidebar-heading">
-            <p className="eyebrow">Inbox</p>
-            <strong>{conversations.length}</strong>
+            <div className="mailbox-tabs" aria-label="Message folders">
+              <button
+                className={!showArchived ? "active" : ""}
+                type="button"
+                onClick={() => selectMailbox(false)}
+              >
+                Inbox
+              </button>
+              <button
+                className={showArchived ? "active" : ""}
+                type="button"
+                onClick={() => selectMailbox(true)}
+              >
+                Archived
+              </button>
+            </div>
+            <strong>{visibleConversations.length}</strong>
           </div>
           {loading && !conversations.length ? (
             <p className="conversation-placeholder">Loading messages…</p>
-          ) : conversations.length ? (
+          ) : visibleConversations.length ? (
             <div className="conversation-list">
-              {conversations.map((conversation) => {
+              {visibleConversations.map((conversation) => {
                 const other = otherParticipant(conversation, user.uid);
+                const archived = conversation.archivedBy.includes(user.uid);
+                const blockedByCurrentUser =
+                  conversation.blockedBy.includes(user.uid);
                 return (
-                  <button
+                  <div
+                    className="conversation-list-item"
                     key={conversation.id}
-                    className={
-                      activeConversationId === conversation.id ? "active" : ""
-                    }
-                    type="button"
-                    onClick={() => {
-                      setActiveConversationId(conversation.id);
-                      setActiveName(other.name);
-                    }}
                   >
-                    <span className="conversation-avatar">
-                      {other.name.charAt(0).toUpperCase() || "W"}
-                    </span>
-                    <span className="conversation-copy">
-                      <strong>{other.name}</strong>
-                      <small>
-                        {conversation.lastMessage || "Start the conversation"}
-                      </small>
-                    </span>
-                    <time>
-                      {formatConversationTime(conversation.updatedAt)}
-                    </time>
-                  </button>
+                    <button
+                      className={
+                        activeConversationId === conversation.id ? "active" : ""
+                      }
+                      type="button"
+                      onClick={() => {
+                        setOpenOptionsId(null);
+                        setActiveConversationId(conversation.id);
+                        setActiveName(other.name);
+                      }}
+                    >
+                      <span className="conversation-avatar">
+                        {other.name.charAt(0).toUpperCase() || "W"}
+                      </span>
+                      <span className="conversation-copy">
+                        <strong>{other.name}</strong>
+                        <small>
+                          {conversation.blockedBy.length
+                            ? "Messaging blocked"
+                            : conversation.lastMessage ||
+                              "Start the conversation"}
+                        </small>
+                      </span>
+                      <time>
+                        {formatConversationTime(conversation.updatedAt)}
+                      </time>
+                    </button>
+                    <button
+                      className="conversation-options-button"
+                      type="button"
+                      aria-label={`Options for ${other.name}`}
+                      aria-expanded={openOptionsId === conversation.id}
+                      onClick={() =>
+                        setOpenOptionsId((current) =>
+                          current === conversation.id ? null : conversation.id,
+                        )
+                      }
+                    >
+                      ···
+                    </button>
+                    {openOptionsId === conversation.id && (
+                      <div className="conversation-options-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={conversationActionId === conversation.id}
+                          onClick={() =>
+                            void changeArchive(conversation, !archived)
+                          }
+                        >
+                          {archived ? "Move to inbox" : "Archive"}
+                        </button>
+                        <button
+                          className="danger"
+                          type="button"
+                          role="menuitem"
+                          disabled={conversationActionId === conversation.id}
+                          onClick={() =>
+                            void changeBlock(
+                              conversation,
+                              !blockedByCurrentUser,
+                            )
+                          }
+                        >
+                          {blockedByCurrentUser ? "Unblock" : "Block"}
+                        </button>
+                        <button
+                          className="danger"
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setOpenOptionsId(null);
+                            onReport({
+                              type: "conversation",
+                              id: conversation.id,
+                              label: `Conversation with ${other.name}`,
+                              reportedUserId: other.uid,
+                            });
+                          }}
+                        >
+                          Report
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
           ) : (
             <div className="conversation-empty">
-              <h2>No messages yet.</h2>
-              <p>Choose Message on a study-buddy profile to start.</p>
+              <h2>{showArchived ? "No archived chats." : "No messages yet."}</h2>
+              <p>
+                {showArchived
+                  ? "Archived conversations will appear here."
+                  : "Choose Message on a study-buddy profile to start."}
+              </p>
             </div>
           )}
         </aside>
@@ -304,6 +524,11 @@ export default function ChatPanel({
                   <p>Conversation with</p>
                   <h2>{threadName}</h2>
                 </div>
+                {conversationBlocked && (
+                  <span className="blocked-label">
+                    {blockedByMe ? "Blocked by you" : "Messaging blocked"}
+                  </span>
+                )}
               </header>
               <div className="message-log" role="log" aria-live="polite">
                 {messages.length ? (
@@ -327,35 +552,43 @@ export default function ChatPanel({
                 )}
                 <div ref={messageEndRef} />
               </div>
-              <form className="message-composer" onSubmit={submitMessage}>
-                <label>
-                  <span className="sr-only">Message</span>
-                  <textarea
-                    maxLength={1000}
-                    rows={2}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        !event.shiftKey &&
-                        draft.trim()
-                      ) {
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                    placeholder={`Message ${threadName}`}
-                  />
-                </label>
-                <button
-                  className="button primary"
-                  type="submit"
-                  disabled={sending || !draft.trim()}
-                >
-                  {sending ? "Sending…" : "Send"}
-                </button>
-              </form>
+              {conversationBlocked ? (
+                <div className="blocked-composer">
+                  {blockedByMe
+                    ? "Unblock this conversation from its options menu to send messages."
+                    : "Messages cannot be sent in this conversation."}
+                </div>
+              ) : (
+                <form className="message-composer" onSubmit={submitMessage}>
+                  <label>
+                    <span className="sr-only">Message</span>
+                    <textarea
+                      maxLength={1000}
+                      rows={2}
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" &&
+                          !event.shiftKey &&
+                          draft.trim()
+                        ) {
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                      placeholder={`Message ${threadName}`}
+                    />
+                  </label>
+                  <button
+                    className="button primary"
+                    type="submit"
+                    disabled={sending || !draft.trim()}
+                  >
+                    {sending ? "Sending…" : "Send"}
+                  </button>
+                </form>
+              )}
             </>
           ) : (
             <div className="chat-thread-empty">

@@ -18,8 +18,10 @@ npm run dev
 - Optionally share an Instagram handle with study-buddy matches.
 - View recommendations based on major and course overlap.
 - Send and receive private real-time messages.
+- Archive, block, unblock, and report conversations.
 - Browse and filter study spots.
-- Submit new study spots to Firestore.
+- Comment on and report individual study spots.
+- Submit new study spots.
 
 ## Commands
 

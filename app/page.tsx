@@ -7,8 +7,11 @@ import {
   getFirebaseClient,
   getPublicRuntimeConfig,
 } from "./lib/firebase";
+import type { ReportTarget } from "./lib/reports";
 import { isAllowedWasedaEmail } from "./lib/waseda-auth";
 import ChatPanel, { type ChatTarget } from "./components/chat-panel";
+import ReportModal from "./components/report-modal";
+import StudySpotCommentsModal from "./components/study-spot-comments-modal";
 
 type Buddy = {
   uid: string;
@@ -133,6 +136,8 @@ export default function Home() {
   const [spotFilter, setSpotFilter] = useState("All");
   const [contactModal, setContactModal] = useState<ContactModal | null>(null);
   const [chatTarget, setChatTarget] = useState<ChatTarget | null>(null);
+  const [commentSpot, setCommentSpot] = useState<StudySpot | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [upvotedSpots, setUpvotedSpots] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState("");
 
@@ -466,6 +471,8 @@ export default function Home() {
     setBuddies([]);
     setSpots([]);
     setChatTarget(null);
+    setCommentSpot(null);
+    setReportTarget(null);
     setView("buddies");
   }
 
@@ -982,6 +989,7 @@ export default function Home() {
             profile.fullName || user.displayName || user.email || "Waseda user"
           }
           target={chatTarget}
+          onReport={setReportTarget}
         />
       )}
 
@@ -1167,20 +1175,43 @@ export default function Home() {
                         <span key={label}>{label}</span>
                       ))}
                     </div>
-                    <button
-                      className={`upvote-button ${
-                        upvotedSpots[getSpotKey(spot)] ? "upvoted" : ""
-                      }`}
-                      type="button"
-                      onClick={() => upvoteSpot(spot)}
-                      disabled={Boolean(upvotedSpots[getSpotKey(spot)])}
-                      aria-label={`Upvote ${spot.name}`}
-                      aria-pressed={Boolean(upvotedSpots[getSpotKey(spot)])}
-                    >
-                      <span aria-hidden="true">↑</span>
-                      {getDemoUpvoteCount(spot) +
-                        (upvotedSpots[getSpotKey(spot)] ? 1 : 0)}
-                    </button>
+                    <div className="spot-card-actions">
+                      <button
+                        className="spot-comment-button"
+                        type="button"
+                        onClick={() => setCommentSpot(spot)}
+                      >
+                        Comments
+                      </button>
+                      <button
+                        className="spot-report-button"
+                        type="button"
+                        onClick={() =>
+                          setReportTarget({
+                            type: "study_spot",
+                            id: spot.id,
+                            label: spot.name,
+                            reportedUserId: spot.added_by ?? "",
+                          })
+                        }
+                      >
+                        Report
+                      </button>
+                      <button
+                        className={`upvote-button ${
+                          upvotedSpots[getSpotKey(spot)] ? "upvoted" : ""
+                        }`}
+                        type="button"
+                        onClick={() => upvoteSpot(spot)}
+                        disabled={Boolean(upvotedSpots[getSpotKey(spot)])}
+                        aria-label={`Upvote ${spot.name}`}
+                        aria-pressed={Boolean(upvotedSpots[getSpotKey(spot)])}
+                      >
+                        <span aria-hidden="true">↑</span>
+                        {getDemoUpvoteCount(spot) +
+                          (upvotedSpots[getSpotKey(spot)] ? 1 : 0)}
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -1192,6 +1223,34 @@ export default function Home() {
             </div>
           )}
         </section>
+      )}
+
+      {commentSpot && (
+        <StudySpotCommentsModal
+          user={user}
+          currentUserName={
+            profile.fullName || user.displayName || user.email || "Waseda user"
+          }
+          spot={{
+            id: commentSpot.id,
+            name: commentSpot.name,
+            addedBy: commentSpot.added_by ?? "",
+          }}
+          onClose={() => setCommentSpot(null)}
+          onReport={setReportTarget}
+        />
+      )}
+
+      {reportTarget && (
+        <ReportModal
+          user={user}
+          target={reportTarget}
+          onClose={() => setReportTarget(null)}
+          onReported={() => {
+            setReportTarget(null);
+            showToast("Report submitted.");
+          }}
+        />
       )}
 
       {contactModal && (

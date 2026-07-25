@@ -11,6 +11,44 @@ service cloud.firestore {
         );
     }
 
+    match /study_spots/{spotId} {
+      allow read, create, update, delete: if false;
+
+      match /comments/{commentId} {
+        function publicSpot() {
+          return get(
+            /databases/$(database)/documents/study_spots/$(spotId)
+          );
+        }
+
+        allow read: if isWasedaUser()
+          && publicSpot().data.is_public == true;
+
+        allow create: if isWasedaUser()
+          && publicSpot().data.is_public == true
+          && request.resource.data.keys().hasOnly([
+            'authorId',
+            'authorName',
+            'text',
+            'createdAt'
+          ])
+          && request.resource.data.authorId == request.auth.uid
+          && exists(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          )
+          && request.resource.data.authorName
+            == get(
+              /databases/$(database)/documents/users/$(request.auth.uid)
+            ).data.full_name
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.createdAt == request.time;
+
+        allow update, delete: if false;
+      }
+    }
+
     match /conversations/{conversationId} {
       function validParticipants() {
         let participants = request.resource.data.participants;
@@ -40,12 +78,16 @@ service cloud.firestore {
           'participantNames',
           'lastMessage',
           'lastSenderId',
+          'archivedBy',
+          'blockedBy',
           'createdAt',
           'updatedAt'
         ])
         && validParticipants()
         && request.resource.data.lastMessage == ''
         && request.resource.data.lastSenderId == ''
+        && request.resource.data.archivedBy == []
+        && request.resource.data.blockedBy == []
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
@@ -65,6 +107,33 @@ service cloud.firestore {
             && request.resource.data.lastMessage.size() <= 160
             && request.resource.data.lastSenderId == request.auth.uid
             && request.resource.data.updatedAt == request.time
+            && resource.data.get('blockedBy', []).size() == 0
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['archivedBy'])
+            && request.resource.data.archivedBy is list
+            && request.resource.data.archivedBy.size() <= 2
+            && request.resource.data.archivedBy
+              .hasOnly(resource.data.participants)
+            && request.resource.data.archivedBy
+              .removeAll([request.auth.uid])
+              == resource.data.get('archivedBy', [])
+                .removeAll([request.auth.uid])
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['blockedBy'])
+            && request.resource.data.blockedBy is list
+            && request.resource.data.blockedBy.size() <= 2
+            && request.resource.data.blockedBy
+              .hasOnly(resource.data.participants)
+            && request.resource.data.blockedBy
+              .removeAll([request.auth.uid])
+              == resource.data.get('blockedBy', [])
+                .removeAll([request.auth.uid])
           )
         );
 
@@ -85,6 +154,7 @@ service cloud.firestore {
         allow read: if isConversationParticipant();
 
         allow create: if isConversationParticipant()
+          && parentConversation().data.get('blockedBy', []).size() == 0
           && request.resource.data.keys().hasOnly([
             'senderId',
             'text',
@@ -98,6 +168,65 @@ service cloud.firestore {
 
         allow update, delete: if false;
       }
+    }
+
+    match /reports/{reportId} {
+      function validReportTarget() {
+        let targetType = request.resource.data.targetType;
+        let targetId = request.resource.data.targetId;
+        return (
+          targetType == 'conversation'
+          && exists(
+            /databases/$(database)/documents/conversations/$(targetId)
+          )
+          && request.auth.uid in get(
+            /databases/$(database)/documents/conversations/$(targetId)
+          ).data.participants
+        )
+        ||
+        (
+          targetType == 'study_spot'
+          && exists(
+            /databases/$(database)/documents/study_spots/$(targetId)
+          )
+          && get(
+            /databases/$(database)/documents/study_spots/$(targetId)
+          ).data.is_public == true
+        );
+      }
+
+      allow create: if isWasedaUser()
+        && request.resource.data.keys().hasOnly([
+          'reporterId',
+          'targetType',
+          'targetId',
+          'targetLabel',
+          'reportedUserId',
+          'reason',
+          'details',
+          'status',
+          'createdAt'
+        ])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetId is string
+        && request.resource.data.targetId.size() > 0
+        && request.resource.data.targetLabel is string
+        && request.resource.data.targetLabel.size() > 0
+        && request.resource.data.targetLabel.size() <= 160
+        && request.resource.data.reportedUserId is string
+        && request.resource.data.reason in [
+          'Spam',
+          'Harassment or safety',
+          'Inaccurate information',
+          'Other'
+        ]
+        && request.resource.data.details is string
+        && request.resource.data.details.size() <= 500
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt == request.time
+        && validReportTarget();
+
+      allow read, update, delete: if false;
     }
   }
 }

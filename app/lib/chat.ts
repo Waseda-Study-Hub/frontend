@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   doc,
   limit,
@@ -26,6 +28,8 @@ export type ConversationSummary = {
   participantNames: Record<string, string>;
   lastMessage: string;
   lastSenderId: string;
+  archivedBy: string[];
+  blockedBy: string[];
   createdAt: Date | null;
   updatedAt: Date | null;
 };
@@ -91,6 +95,16 @@ export function subscribeToConversations(
               typeof data.lastMessage === "string" ? data.lastMessage : "",
             lastSenderId:
               typeof data.lastSenderId === "string" ? data.lastSenderId : "",
+            archivedBy: Array.isArray(data.archivedBy)
+              ? data.archivedBy.filter(
+                  (value): value is string => typeof value === "string",
+                )
+              : [],
+            blockedBy: Array.isArray(data.blockedBy)
+              ? data.blockedBy.filter(
+                  (value): value is string => typeof value === "string",
+                )
+              : [],
             createdAt: timestampToDate(data.createdAt),
             updatedAt: timestampToDate(data.updatedAt),
           } satisfies ConversationSummary;
@@ -161,6 +175,8 @@ export async function ensureConversation(
       participantNames,
       lastMessage: "",
       lastSenderId: "",
+      archivedBy: [],
+      blockedBy: [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -178,6 +194,28 @@ export async function ensureConversation(
   }
 
   return conversationId;
+}
+
+export function setConversationArchived(
+  db: Firestore,
+  conversationId: string,
+  userId: string,
+  archived: boolean,
+) {
+  return updateDoc(doc(db, "conversations", conversationId), {
+    archivedBy: archived ? arrayUnion(userId) : arrayRemove(userId),
+  });
+}
+
+export function setConversationBlocked(
+  db: Firestore,
+  conversationId: string,
+  userId: string,
+  blocked: boolean,
+) {
+  return updateDoc(doc(db, "conversations", conversationId), {
+    blockedBy: blocked ? arrayUnion(userId) : arrayRemove(userId),
+  });
 }
 
 export async function sendChatMessage(
