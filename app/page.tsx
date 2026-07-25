@@ -292,18 +292,32 @@ export default function Home() {
     const locationTerm = spotLocationQuery.trim().toLowerCase();
     const labelTerm = spotFilter.toLowerCase();
 
-    return spots.filter((spot) => {
-      const matchesName =
-        !nameTerm || spot.name.toLowerCase().includes(nameTerm);
-      const matchesLocation =
-        !locationTerm || spot.location.toLowerCase().includes(locationTerm);
-      const matchesLabel =
-        spotFilter === "All" ||
-        spot.labels.some((label) => label.toLowerCase() === labelTerm);
+    return spots
+      .filter((spot) => {
+        const matchesName =
+          !nameTerm || spot.name.toLowerCase().includes(nameTerm);
+        const matchesLocation =
+          !locationTerm || spot.location.toLowerCase().includes(locationTerm);
+        const matchesLabel =
+          spotFilter === "All" ||
+          spot.labels.some((label) => label.toLowerCase() === labelTerm);
 
-      return matchesName && matchesLocation && matchesLabel;
-    });
-  }, [spots, spotFilter, spotLocationQuery, spotNameQuery]);
+        return matchesName && matchesLocation && matchesLabel;
+      })
+      .sort((a, b) => {
+        const aVotes =
+          getDemoUpvoteCount(a) + (upvotedSpots[getSpotKey(a)] ? 1 : 0);
+        const bVotes =
+          getDemoUpvoteCount(b) + (upvotedSpots[getSpotKey(b)] ? 1 : 0);
+        return bVotes - aVotes || a.name.localeCompare(b.name);
+      });
+  }, [
+    spots,
+    spotFilter,
+    spotLocationQuery,
+    spotNameQuery,
+    upvotedSpots,
+  ]);
 
   const spotFilterCount = [
     spotNameQuery.trim(),
