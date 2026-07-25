@@ -156,14 +156,6 @@ export async function ensureConversation(
   const conversationRef = doc(db, "conversations", conversationId);
 
   try {
-    await updateDoc(conversationRef, { participantNames });
-  } catch (error) {
-    const code =
-      typeof error === "object" && error && "code" in error
-        ? String(error.code)
-        : "";
-    if (!code.endsWith("not-found")) throw error;
-
     await setDoc(conversationRef, {
       participants,
       participantNames,
@@ -172,6 +164,17 @@ export async function ensureConversation(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+  } catch (error) {
+    const code =
+      typeof error === "object" && error && "code" in error
+        ? String(error.code)
+        : "";
+    if (!code.endsWith("permission-denied")) throw error;
+
+    // A full set is a secure create for a new conversation. If the document
+    // already exists, the rules reject replacing its message summary, so only
+    // refresh the participant display names instead.
+    await updateDoc(conversationRef, { participantNames });
   }
 
   return conversationId;
