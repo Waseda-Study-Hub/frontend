@@ -26,3 +26,7 @@ npm run dev
 - `npm run build` — create a production build
 - `npm run lint` — check the source
 - `npm test` — run lint and the production build
+
+## Deployment
+
+Can be accessed at https://waseda-study-hub.vercel.app/

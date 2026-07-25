@@ -790,6 +790,79 @@ a {
   margin-top: 8px;
 }
 
+.private-card.spot {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.spot-card-image {
+  border-radius: 15px 15px 0 0;
+  height: 132px;
+  margin: -24px -24px 20px;
+  overflow: hidden;
+}
+
+.spot-card-image img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.spot-card-footer {
+  align-items: flex-end;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.spot-card-footer .tag-row {
+  margin-top: 0;
+}
+
+.upvote-button {
+  align-items: center;
+  background: white;
+  border: 1px solid #cfc7bd;
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 650;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 13px;
+}
+
+.upvote-button span {
+  color: var(--red);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.upvote-button:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.upvote-button.upvoted,
+.upvote-button.upvoted:disabled {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+  cursor: default;
+  opacity: 1;
+}
+
+.upvote-button.upvoted span {
+  color: white;
+}
+
 .filter-pills {
   display: flex;
   flex-wrap: wrap;

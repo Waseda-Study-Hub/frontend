@@ -69,6 +69,21 @@ const emptyStudySpot: StudySpotForm = {
   labels: "",
 };
 
+const demoUpvoteStorageKey = "waseda-study-hub-demo-upvotes";
+
+function getSpotKey(spot: StudySpot) {
+  return spot.id || `${spot.name}:${spot.location}`;
+}
+
+function getDemoUpvoteCount(spot: StudySpot) {
+  const value = getSpotKey(spot);
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash, 31) + value.charCodeAt(index);
+  }
+  return ((hash >>> 0) % 20) + 1;
+}
+
 function Brand() {
   return (
     <span className="brand">
@@ -116,6 +131,7 @@ export default function Home() {
   const [spotLocationQuery, setSpotLocationQuery] = useState("");
   const [spotFilter, setSpotFilter] = useState("All");
   const [contactModal, setContactModal] = useState<ContactModal | null>(null);
+  const [upvotedSpots, setUpvotedSpots] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState("");
 
   useEffect(() => {
@@ -177,6 +193,30 @@ export default function Home() {
     // loadPrivateData intentionally follows the authenticated user and API URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, apiBaseUrl]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(
+          window.localStorage.getItem(demoUpvoteStorageKey) ?? "[]",
+        );
+        if (!Array.isArray(saved)) return;
+        setUpvotedSpots(
+          Object.fromEntries(
+            saved
+              .filter(
+                (value: unknown): value is string => typeof value === "string",
+              )
+              .map((value) => [value, true]),
+          ),
+        );
+      } catch {
+        window.localStorage.removeItem(demoUpvoteStorageKey);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!contactModal) return;
@@ -274,6 +314,23 @@ export default function Home() {
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 3200);
+  }
+
+  function upvoteSpot(spot: StudySpot) {
+    const key = getSpotKey(spot);
+    setUpvotedSpots((current) => {
+      if (current[key]) return current;
+      const next = { ...current, [key]: true };
+      try {
+        window.localStorage.setItem(
+          demoUpvoteStorageKey,
+          JSON.stringify(Object.keys(next)),
+        );
+      } catch {
+        // The demo upvote still works for this page when storage is unavailable.
+      }
+      return next;
+    });
   }
 
   async function authorizedFetch(path: string, init?: RequestInit) {
@@ -531,9 +588,9 @@ export default function Home() {
           <Image
             className="landing-photo"
             src="/study-spots.jpg"
-            alt="Illustration of a modern university library"
-            width={1200}
-            height={900}
+            alt="Waseda University library study space"
+            width={1471}
+            height={828}
           />
           <div className="landing-feature-copy">
             <p className="eyebrow">Study Spot</p>
@@ -1038,13 +1095,37 @@ export default function Home() {
             <div className="private-grid spots">
               {filteredSpots.map((spot) => (
                 <article className="private-card spot" key={spot.id}>
+                  <div className="spot-card-image">
+                    <Image
+                      src="/study-spots.jpg"
+                      alt={`Study spot preview for ${spot.name}`}
+                      width={1471}
+                      height={828}
+                    />
+                  </div>
                   <p className="location-label">{spot.location}</p>
                   <h2>{spot.name}</h2>
                   <p className="card-description">{spot.description}</p>
-                  <div className="tag-row">
-                    {spot.labels.map((label) => (
-                      <span key={label}>{label}</span>
-                    ))}
+                  <div className="spot-card-footer">
+                    <div className="tag-row">
+                      {spot.labels.map((label) => (
+                        <span key={label}>{label}</span>
+                      ))}
+                    </div>
+                    <button
+                      className={`upvote-button ${
+                        upvotedSpots[getSpotKey(spot)] ? "upvoted" : ""
+                      }`}
+                      type="button"
+                      onClick={() => upvoteSpot(spot)}
+                      disabled={Boolean(upvotedSpots[getSpotKey(spot)])}
+                      aria-label={`Upvote ${spot.name}`}
+                      aria-pressed={Boolean(upvotedSpots[getSpotKey(spot)])}
+                    >
+                      <span aria-hidden="true">↑</span>
+                      {getDemoUpvoteCount(spot) +
+                        (upvotedSpots[getSpotKey(spot)] ? 1 : 0)}
+                    </button>
                   </div>
                 </article>
               ))}
