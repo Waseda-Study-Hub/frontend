@@ -6,9 +6,11 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 export type PublicRuntimeConfig = {
   apiBaseUrl: string;
+  firestoreDatabaseId: string;
   firebase: {
     apiKey: string;
     authDomain: string;
@@ -30,10 +32,11 @@ export function getPublicRuntimeConfig() {
   return runtimeConfigPromise;
 }
 
-function createFirebaseClient(config: PublicRuntimeConfig["firebase"]) {
-  const app = getApps().length ? getApp() : initializeApp(config);
+function createFirebaseClient(config: PublicRuntimeConfig) {
+  const app = getApps().length ? getApp() : initializeApp(config.firebase);
   return {
     auth: getAuth(app),
+    db: getFirestore(app, config.firestoreDatabaseId),
     provider: new GoogleAuthProvider(),
     onAuthStateChanged,
     signInWithPopup,
@@ -45,7 +48,7 @@ export async function getFirebaseClient() {
   if (typeof window === "undefined") return null;
   firebaseClientPromise ??= getPublicRuntimeConfig().then((config) => {
     if (!Object.values(config.firebase).every(Boolean)) return null;
-    return createFirebaseClient(config.firebase);
+    return createFirebaseClient(config);
   });
   return firebaseClientPromise;
 }

@@ -8,6 +8,7 @@ import {
   getPublicRuntimeConfig,
 } from "./lib/firebase";
 import { isAllowedWasedaEmail } from "./lib/waseda-auth";
+import ChatPanel, { type ChatTarget } from "./components/chat-panel";
 
 type Buddy = {
   uid: string;
@@ -111,9 +112,9 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [apiBaseUrl, setApiBaseUrl] = useState("");
-  const [view, setView] = useState<"buddies" | "spots" | "profile">(
-    "buddies",
-  );
+  const [view, setView] = useState<
+    "buddies" | "spots" | "messages" | "profile"
+  >("buddies");
   const [buddies, setBuddies] = useState<Buddy[]>([]);
   const [spots, setSpots] = useState<StudySpot[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -131,6 +132,7 @@ export default function Home() {
   const [spotLocationQuery, setSpotLocationQuery] = useState("");
   const [spotFilter, setSpotFilter] = useState("All");
   const [contactModal, setContactModal] = useState<ContactModal | null>(null);
+  const [chatTarget, setChatTarget] = useState<ChatTarget | null>(null);
   const [upvotedSpots, setUpvotedSpots] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState("");
 
@@ -463,6 +465,7 @@ export default function Home() {
     setUser(null);
     setBuddies([]);
     setSpots([]);
+    setChatTarget(null);
     setView("buddies");
   }
 
@@ -680,6 +683,16 @@ export default function Home() {
           >
             Study spots
           </button>
+          <button
+            className={view === "messages" ? "active" : ""}
+            onClick={() => {
+              setChatTarget(null);
+              setView("messages");
+            }}
+            disabled={profileMissing}
+          >
+            Messages
+          </button>
         </nav>
         <div className="account-menu">
           <button
@@ -702,7 +715,9 @@ export default function Home() {
             ? "Study buddies"
             : view === "spots"
               ? "Study spots"
-              : "Your profile"}
+              : view === "messages"
+                ? "Messages"
+                : "Your profile"}
         </h1>
       </section>
 
@@ -921,17 +936,33 @@ export default function Home() {
                     ))}
                   </div>
                   {buddy.bio && <p className="card-description">{buddy.bio}</p>}
-                  <button
-                    className="outline-button"
-                    onClick={() =>
-                      setContactModal({
-                        name: buddy.full_name,
-                        instagram: buddy.instagram_tag ?? null,
-                      })
-                    }
-                  >
-                    Contact
-                  </button>
+                  <div className="buddy-card-actions">
+                    <button
+                      className="message-button"
+                      type="button"
+                      onClick={() => {
+                        setChatTarget({
+                          uid: buddy.uid,
+                          name: buddy.full_name,
+                        });
+                        setView("messages");
+                      }}
+                    >
+                      Message
+                    </button>
+                    <button
+                      className="outline-button"
+                      type="button"
+                      onClick={() =>
+                        setContactModal({
+                          name: buddy.full_name,
+                          instagram: buddy.instagram_tag ?? null,
+                        })
+                      }
+                    >
+                      Contact
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -942,6 +973,16 @@ export default function Home() {
             </div>
           )}
         </section>
+      )}
+
+      {!dataLoading && view === "messages" && !profileMissing && (
+        <ChatPanel
+          user={user}
+          currentUserName={
+            profile.fullName || user.displayName || user.email || "Waseda user"
+          }
+          target={chatTarget}
+        />
       )}
 
       {!dataLoading && view === "spots" && !profileMissing && (

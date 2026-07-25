@@ -1,0 +1,103 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isWasedaUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.matches(
+          '^[^@]+@(waseda[.]jp|(akane|asagi|fuji|moegi|ruri|suou|toki|aoni|kurenai)[.]waseda[.]jp)$'
+        );
+    }
+
+    match /conversations/{conversationId} {
+      function validParticipants() {
+        let participants = request.resource.data.participants;
+        return participants is list
+          && participants.size() == 2
+          && participants[0] != participants[1]
+          && request.auth.uid in participants
+          && exists(/databases/$(database)/documents/users/$(participants[0]))
+          && exists(/databases/$(database)/documents/users/$(participants[1]))
+          && request.resource.data.participantNames is map
+          && request.resource.data.participantNames[participants[0]]
+            == get(/databases/$(database)/documents/users/$(participants[0])).data.full_name
+          && request.resource.data.participantNames[participants[1]]
+            == get(/databases/$(database)/documents/users/$(participants[1])).data.full_name;
+      }
+
+      function isParticipant() {
+        return isWasedaUser()
+          && request.auth.uid in resource.data.participants;
+      }
+
+      allow read: if isParticipant();
+
+      allow create: if isWasedaUser()
+        && request.resource.data.keys().hasOnly([
+          'participants',
+          'participantNames',
+          'lastMessage',
+          'lastSenderId',
+          'createdAt',
+          'updatedAt'
+        ])
+        && validParticipants()
+        && request.resource.data.lastMessage == ''
+        && request.resource.data.lastSenderId == ''
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isParticipant()
+        && request.resource.data.participants == resource.data.participants
+        && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['participantNames'])
+            && validParticipants()
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['lastMessage', 'lastSenderId', 'updatedAt'])
+            && request.resource.data.lastMessage is string
+            && request.resource.data.lastMessage.size() <= 160
+            && request.resource.data.lastSenderId == request.auth.uid
+            && request.resource.data.updatedAt == request.time
+          )
+        );
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function parentConversation() {
+          return get(
+            /databases/$(database)/documents/conversations/$(conversationId)
+          );
+        }
+
+        function isConversationParticipant() {
+          return isWasedaUser()
+            && request.auth.uid in parentConversation().data.participants;
+        }
+
+        allow read: if isConversationParticipant();
+
+        allow create: if isConversationParticipant()
+          && request.resource.data.keys().hasOnly([
+            'senderId',
+            'text',
+            'createdAt'
+          ])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time;
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}

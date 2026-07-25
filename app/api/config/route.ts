@@ -4,6 +4,8 @@ export async function GET() {
   return Response.json({
     apiBaseUrl:
       process.env.API_BASE_URL ?? "https://backend-t7zh.onrender.com",
+    firestoreDatabaseId:
+      process.env.FIRESTORE_DATABASE_ID ?? "waseda-study-hub",
     firebase: {
       apiKey:
         process.env.FIREBASE_API_KEY ??
