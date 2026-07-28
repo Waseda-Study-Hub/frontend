@@ -719,17 +719,19 @@ export default function Home() {
         </section>
 
         <section className="landing-about" aria-label="About Waseda Study Hub">
-          <p className="eyebrow">Why we built this</p>
-          <p>
-            Finding a study partner at Waseda usually comes down to whoever
-            happens to be in your seminar or your group chat. We wanted
-            something better: a way to find people studying the same things
-            as you, at the times you&apos;re actually free, without handing
-            out your contact info to strangers first. Waseda Study Hub was
-            built by a small team of students for the GDGoC Waseda x IPUT
-            Innovation Showcase, and it&apos;s meant to feel like something a
-            Waseda student would actually build for other Waseda students.
-          </p>
+          <div className="landing-about-card">
+            <p className="eyebrow">Why we built this</p>
+            <p>
+              Finding a study partner at Waseda usually comes down to whoever
+              happens to be in your seminar or your group chat. We wanted
+              something better: a way to find people studying the same things
+              as you, at the times you&apos;re actually free, without handing
+              out your contact info to strangers first. Waseda Study Hub was
+              built by a small team of students for the GDGoC Waseda x IPUT
+              Innovation Showcase, and it&apos;s meant to feel like something a
+              Waseda student would actually build for other Waseda students.
+            </p>
+          </div>
         </section>
 
         <section className="landing-feature" id="study-buddies">

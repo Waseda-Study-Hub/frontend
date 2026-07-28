@@ -2275,6 +2275,13 @@ a {
   padding: clamp(60px, 8vw, 100px) 26px 0;
 }
 
+.landing-steps article {
+  background: #faf8f6;
+  border: 1px solid #e8e3de;
+  border-radius: 14px;
+  padding: 26px;
+}
+
 .step-number {
   align-items: center;
   background: var(--red);
@@ -2304,10 +2311,17 @@ a {
 }
 
 .landing-about {
-  margin: 0 auto;
+  margin: clamp(60px, 8vw, 100px) auto 0;
   max-width: 720px;
-  padding: clamp(60px, 8vw, 100px) 26px 0;
+  padding: 0 26px;
   text-align: center;
+}
+
+.landing-about-card {
+  background: #faf8f6;
+  border: 1px solid #e8e3de;
+  border-radius: 14px;
+  padding: 32px clamp(24px, 4vw, 44px);
 }
 
 .landing-about p:not(.eyebrow) {
@@ -2414,8 +2428,14 @@ a {
 }
 
 .faq-item {
-  border-top: 1px solid #ddd8d4;
-  padding: 22px 0;
+  background: #faf8f6;
+  border: 1px solid #e8e3de;
+  border-radius: 14px;
+  padding: 22px 26px;
+}
+
+.faq-item + .faq-item {
+  margin-top: 14px;
 }
 
 .faq-item h3 {
