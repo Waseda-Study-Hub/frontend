@@ -2221,30 +2221,168 @@ a {
   width: 100%;
 }
 
-.landing-values {
+.landing-steps {
   display: grid;
   gap: 34px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0 auto;
   max-width: 1268px;
-  padding: clamp(90px, 10vw, 140px) 26px;
+  padding: clamp(60px, 8vw, 100px) 26px 0;
 }
 
-.landing-values article {
-  border-top: 1px solid #ddd8d4;
-  padding-top: 22px;
+.step-number {
+  align-items: center;
+  background: var(--red);
+  border-radius: 999px;
+  color: white;
+  display: flex;
+  font-family: Georgia, serif;
+  font-size: 18px;
+  height: 40px;
+  justify-content: center;
+  margin-bottom: 18px;
+  width: 40px;
 }
 
-.landing-values h3 {
-  font-size: 16px;
-  letter-spacing: -0.025em;
-  margin: 0 0 10px;
+.landing-steps h3 {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
 }
 
-.landing-values p {
+.landing-steps p {
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 360px;
+}
+
+.landing-about {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: clamp(60px, 8vw, 100px) 26px 0;
+  text-align: center;
+}
+
+.landing-about p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 14px 0 0;
+}
+
+.landing-features {
+  margin: 0 auto;
+  max-width: 1268px;
+  padding: clamp(70px, 9vw, 120px) 26px clamp(60px, 7vw, 100px);
+}
+
+.landing-features-heading {
+  margin: 0 auto 40px;
+  max-width: 560px;
+  text-align: center;
+}
+
+.landing-features-heading h2 {
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 720;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin: 12px 0 0;
+}
+
+.landing-features-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.feature-card {
+  background: #faf8f6;
+  border: 1px solid #e8e3de;
+  border-radius: 14px;
+  padding: 26px;
+}
+
+.feature-card h3 {
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.feature-card p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.landing-roadmap {
+  margin: 0 auto;
+  max-width: 1268px;
+  padding: 0 26px clamp(70px, 9vw, 120px);
+}
+
+.landing-roadmap-subhead {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 12px 0 0;
+}
+
+.roadmap-card {
+  background: #fff;
+  border-style: dashed;
+}
+
+.roadmap-tag {
+  background: #f1ede7;
+  border-radius: 999px;
+  color: var(--red);
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
+  padding: 4px 10px;
+  text-transform: uppercase;
+}
+
+.landing-faq {
+  margin: 0 auto;
+  max-width: 780px;
+  padding: 0 26px clamp(90px, 10vw, 140px);
+}
+
+.landing-faq-heading {
+  margin: 0 0 34px;
+  text-align: center;
+}
+
+.landing-faq-heading h2 {
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-size: clamp(26px, 2.8vw, 34px);
+  font-weight: 720;
+  letter-spacing: -0.04em;
+  margin: 12px 0 0;
+}
+
+.faq-item {
+  border-top: 1px solid #ddd8d4;
+  padding: 22px 0;
+}
+
+.faq-item h3 {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+.faq-item p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
   margin: 0;
 }
 
@@ -2333,10 +2471,30 @@ a {
     padding: 8px 2px;
   }
 
-  .landing-values {
-    gap: 30px;
+  .landing-steps,
+  .landing-features-grid {
+    gap: 26px;
     grid-template-columns: 1fr;
-    padding: 86px 18px;
+  }
+
+  .landing-steps {
+    padding: 48px 18px 0;
+  }
+
+  .landing-about {
+    padding: 48px 18px 0;
+  }
+
+  .landing-features {
+    padding: 56px 18px 48px;
+  }
+
+  .landing-roadmap {
+    padding: 0 18px 56px;
+  }
+
+  .landing-faq {
+    padding: 0 18px 64px;
   }
 
   .landing .simple-footer {

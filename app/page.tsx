@@ -667,6 +667,47 @@ export default function Home() {
           {authError && <p className="form-error hero-error">{authError}</p>}
         </section>
 
+        <section className="landing-steps" aria-label="How Waseda Study Hub works">
+          <article>
+            <span className="step-number">1</span>
+            <h3>Sign in with your Waseda email</h3>
+            <p>
+              We check your Google sign-in against the official @*.waseda.jp
+              domains, so every member is a verified Waseda student.
+            </p>
+          </article>
+          <article>
+            <span className="step-number">2</span>
+            <h3>Build your profile</h3>
+            <p>
+              Add your major, current courses, and when you&apos;re free to
+              study so we can find people who actually overlap with you.
+            </p>
+          </article>
+          <article>
+            <span className="step-number">3</span>
+            <h3>Match, request, and connect</h3>
+            <p>
+              Send a study request to a match. Contact details only unlock
+              once they accept, so nothing is shared automatically.
+            </p>
+          </article>
+        </section>
+
+        <section className="landing-about" aria-label="About Waseda Study Hub">
+          <p className="eyebrow">Why we built this</p>
+          <p>
+            Finding a study partner at Waseda usually comes down to whoever
+            happens to be in your seminar or your group chat. We wanted
+            something better: a way to find people studying the same things
+            as you, at the times you&apos;re actually free, without handing
+            out your contact info to strangers first. Waseda Study Hub was
+            built by a small team of students for the GDGoC Waseda x IPUT
+            Innovation Showcase, and it&apos;s meant to feel like something a
+            Waseda student would actually build for other Waseda students.
+          </p>
+        </section>
+
         <section className="landing-feature" id="study-buddies">
           <div className="landing-feature-copy">
             <p className="eyebrow">Study Buddy</p>
@@ -712,18 +753,127 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="landing-values" aria-label="Why Waseda Study Hub">
-          <article>
-            <h3>Built for Waseda</h3>
-            <p>Verified university email access.</p>
+        <section className="landing-features" aria-label="Features">
+          <div className="landing-features-heading">
+            <p className="eyebrow">Features</p>
+            <h2>Everything you need to study with people, not alone.</h2>
+          </div>
+          <div className="landing-features-grid">
+            <article className="feature-card">
+              <h3>Waseda-verified access</h3>
+              <p>
+                Only official @*.waseda.jp accounts can sign in, so everyone
+                you meet here is a real Waseda student.
+              </p>
+            </article>
+            <article className="feature-card">
+              <h3>Smart buddy matching</h3>
+              <p>
+                Every match shows why you&apos;re paired: same major,
+                overlapping courses, or shared availability.
+              </p>
+            </article>
+            <article className="feature-card">
+              <h3>Privacy-first requests</h3>
+              <p>
+                Contact info like Instagram stays hidden until a study request
+                is sent and accepted by both sides.
+              </p>
+            </article>
+            <article className="feature-card">
+              <h3>Real-time messaging</h3>
+              <p>
+                Chat with your study buddies the moment you&apos;re connected,
+                with no page refresh needed.
+              </p>
+            </article>
+            <article className="feature-card">
+              <h3>Crowd-sourced study spots</h3>
+              <p>
+                Discover quiet corners and group-friendly rooms shared by
+                other students around campus.
+              </p>
+            </article>
+            <article className="feature-card">
+              <h3>Community feedback</h3>
+              <p>
+                Upvote, comment, and report spots to keep the list accurate
+                and useful for everyone.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section className="landing-roadmap" aria-label="What's next">
+          <div className="landing-features-heading">
+            <p className="eyebrow">What&apos;s next</p>
+            <h2>Still on our list.</h2>
+            <p className="landing-roadmap-subhead">
+              These aren&apos;t live yet. We&apos;re building them next.
+            </p>
+          </div>
+          <div className="landing-features-grid">
+            <article className="feature-card roadmap-card">
+              <span className="roadmap-tag">Coming soon</span>
+              <h3>AI study concierge</h3>
+              <p>
+                Ask a question like &quot;where&apos;s quiet right now near
+                building 11?&quot; and get a straight answer instead of
+                scrolling the whole spot list.
+              </p>
+            </article>
+            <article className="feature-card roadmap-card">
+              <span className="roadmap-tag">Coming soon</span>
+              <h3>Live busyness at study spots</h3>
+              <p>
+                See how full a spot is before you walk over, based on
+                check-ins from students already there.
+              </p>
+            </article>
+            <article className="feature-card roadmap-card">
+              <span className="roadmap-tag">Coming soon</span>
+              <h3>Smarter matching on bios</h3>
+              <p>
+                Beyond major and courses, match on what you&apos;re actually
+                studying for, not just keyword overlap.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section className="landing-faq" aria-label="Frequently asked questions">
+          <div className="landing-faq-heading">
+            <p className="eyebrow">FAQ</p>
+            <h2>Good to know</h2>
+          </div>
+          <article className="faq-item">
+            <h3>Who can join Waseda Study Hub?</h3>
+            <p>
+              Anyone with an official @*.waseda.jp email address. We check
+              your sign-in domain before granting access.
+            </p>
           </article>
-          <article>
-            <h3>Two focused tools</h3>
-            <p>Study buddies and study spots.</p>
+          <article className="faq-item">
+            <h3>Will my contact info be shared automatically?</h3>
+            <p>
+              No. Your Instagram tag only becomes visible to a buddy after you
+              have both agreed to a study request.
+            </p>
           </article>
-          <article>
-            <h3>Private by default</h3>
-            <p>Member details stay behind sign-in.</p>
+          <article className="faq-item">
+            <h3>Is Waseda Study Hub an official university service?</h3>
+            <p>
+              No, it&apos;s an independent project built by students for the
+              GDGoC Waseda x IPUT Innovation Showcase, not run or endorsed by
+              Waseda University.
+            </p>
+          </article>
+          <article className="faq-item">
+            <h3>Is my profile visible to non-Waseda users?</h3>
+            <p>
+              No. Everything behind sign-in, including profiles, study spots,
+              and messages, stays private to verified Waseda members.
+            </p>
           </article>
         </section>
 
