@@ -45,3 +45,6 @@ tsconfig.tsbuildinfo
 /.wrangler/
 /outputs/
 /work/
+
+# Local-only AI assistant context, not shared with the team repo
+CLAUDE.md
