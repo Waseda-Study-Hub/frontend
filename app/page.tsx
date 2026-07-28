@@ -95,6 +95,25 @@ function getDemoUpvoteCount(spot: StudySpot) {
   return ((hash >>> 0) % 20) + 1;
 }
 
+const spotPhotos = [
+  "/spot-quiet-corner.jpg",
+  "/spot-reading-room.jpg",
+  "/spot-reading-nook.jpg",
+  "/spot-study-cafe.jpg",
+  "/spot-coffee-shop.jpg",
+  "/spot-outdoor-terrace.jpg",
+  "/spot-campus-lawn.jpg",
+];
+
+function getSpotPhoto(spot: StudySpot) {
+  const value = getSpotKey(spot);
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash, 31) + value.charCodeAt(index);
+  }
+  return spotPhotos[(hash >>> 0) % spotPhotos.length];
+}
+
 function Brand() {
   return (
     <span className="brand">
@@ -1442,7 +1461,7 @@ export default function Home() {
                 <article className="private-card spot" key={spot.id}>
                   <div className="spot-card-image">
                     <Image
-                      src="/study-spots.jpg"
+                      src={getSpotPhoto(spot)}
                       alt={`Study spot preview for ${spot.name}`}
                       width={1471}
                       height={828}
