@@ -2062,7 +2062,7 @@ a {
 
 /* Public landing page */
 .landing {
-  background: var(--white);
+  background: transparent;
   min-height: 100vh;
 }
 
@@ -2105,8 +2105,53 @@ a {
   opacity: 0.55;
 }
 
+.landing-ambient {
+  background-image:
+    linear-gradient(90deg, rgba(143, 23, 57, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(143, 23, 57, 0.05) 1px, transparent 1px);
+  background-size: 52px 52px;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+}
+
+.landing-blob {
+  border-radius: 50%;
+  filter: blur(90px);
+  position: absolute;
+}
+
+.landing-blob-a {
+  background: var(--soft-red);
+  height: 460px;
+  left: -160px;
+  opacity: 0.55;
+  top: -120px;
+  width: 460px;
+}
+
+.landing-blob-b {
+  background: var(--green);
+  bottom: -180px;
+  height: 520px;
+  opacity: 0.16;
+  right: -200px;
+  width: 520px;
+}
+
+.landing-blob-c {
+  background: var(--red);
+  height: 360px;
+  opacity: 0.08;
+  right: -120px;
+  top: 38vh;
+  width: 360px;
+}
+
 .landing .public-hero {
-  background: var(--white);
+  background: transparent;
   display: block;
   min-height: auto;
   padding: 0 26px;

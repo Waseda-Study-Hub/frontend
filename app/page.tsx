@@ -653,6 +653,11 @@ export default function Home() {
   if (!user) {
     return (
       <main className="landing">
+        <div className="landing-ambient" aria-hidden="true">
+          <span className="landing-blob landing-blob-a" />
+          <span className="landing-blob landing-blob-b" />
+          <span className="landing-blob landing-blob-c" />
+        </div>
         <header className="public-header">
           <a href="#top" aria-label="Waseda Study Hub home">
             <Brand />
