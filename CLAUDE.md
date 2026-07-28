@@ -69,11 +69,20 @@ new features on direct Firestore access.
    the Firebase ID token sent as `Authorization: Bearer <token>` on every
    request (see `authorizedFetch` / `loadPrivateData` in `page.tsx`)
 
-The backend now verifies this token server-side (`verify_token`/`verify_uid_match`
-in the backend's `app/auth/firebase.py`) and checks the decoded uid against any
-`{uid}` path param — this used to be a client-only UX gate but is now a real
-trust boundary as of this session. Still don't weaken the client-side check;
-it's the first line of defense and avoids a round-trip for obviously-wrong emails.
+The backend now verifies this token server-side in `verify_token`
+(`app/auth/firebase.py`), and that function checks BOTH things this list
+implies, not just one: the decoded uid against any `{uid}` path param
+(`verify_uid_match`), AND the token's `email`/`email_verified` claims against
+the same Waseda-domain allowlist as `isAllowedWasedaEmail` here. Until this
+session, the domain restriction was enforced only by this client-side check
+(and by `firestore.rules` for the messaging/reports/comments features) — the
+backend REST API itself would accept a valid Firebase token from *any* Google
+account, Waseda or not, since verifying a token's signature says nothing
+about which email it belongs to. That's now closed at the backend too. Still
+don't weaken the client-side check; it's the first line of defense and avoids
+a round-trip for obviously-wrong emails. If the allowlist ever changes, update
+it in three places: here, `app/auth/firebase.py` in the backend repo, and
+`firestore.rules` in this repo.
 
 ## The `/api/config` pattern — don't break this
 The frontend never hardcodes Firebase keys or the backend URL. Instead:
