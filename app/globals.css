@@ -2107,8 +2107,8 @@ a {
 
 .landing-ambient {
   background-image:
-    linear-gradient(90deg, rgba(143, 23, 57, 0.05) 1px, transparent 1px),
-    linear-gradient(rgba(143, 23, 57, 0.05) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(143, 23, 57, 0.12) 1px, transparent 1px),
+    linear-gradient(rgba(143, 23, 57, 0.12) 1px, transparent 1px);
   background-size: 52px 52px;
   inset: 0;
   overflow: hidden;
