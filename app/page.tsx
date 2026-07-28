@@ -36,6 +36,13 @@ type StudySpot = {
   is_public: boolean;
 };
 
+type StudyRequest = {
+  id: string;
+  from_uid: string;
+  to_uid: string;
+  status: "pending" | "accepted" | "declined";
+};
+
 type ProfileForm = {
   fullName: string;
   year: string;
@@ -120,6 +127,8 @@ export default function Home() {
   >("buddies");
   const [buddies, setBuddies] = useState<Buddy[]>([]);
   const [spots, setSpots] = useState<StudySpot[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<StudyRequest[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<StudyRequest[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [profileMissing, setProfileMissing] = useState(false);
   const [profile, setProfile] = useState<ProfileForm>(emptyProfile);
@@ -354,6 +363,71 @@ export default function Home() {
     });
   }
 
+  function getRequestState(buddyUid: string) {
+    const outgoing = outgoingRequests.find((r) => r.to_uid === buddyUid);
+    const incoming = incomingRequests.find((r) => r.from_uid === buddyUid);
+
+    if (outgoing?.status === "accepted" || incoming?.status === "accepted") {
+      return { kind: "accepted" as const };
+    }
+    if (incoming?.status === "pending") {
+      return { kind: "incoming" as const, request: incoming };
+    }
+    if (outgoing?.status === "pending") {
+      return { kind: "outgoing" as const };
+    }
+    return { kind: "none" as const };
+  }
+
+  async function sendStudyRequest(buddy: Buddy) {
+    try {
+      const response = await authorizedFetch(`/requests/${buddy.uid}`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Could not send the study request.");
+      const request: StudyRequest = await response.json();
+      setOutgoingRequests((current) => [
+        ...current.filter((item) => item.id !== request.id),
+        request,
+      ]);
+      showToast(`Study request sent to ${buddy.full_name}.`);
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Could not send the study request.",
+      );
+    }
+  }
+
+  async function respondToRequest(
+    request: StudyRequest,
+    status: "accepted" | "declined",
+  ) {
+    try {
+      const response = await authorizedFetch(`/requests/${request.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) throw new Error("Could not update the study request.");
+      const updated: StudyRequest = await response.json();
+      setIncomingRequests((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      showToast(
+        status === "accepted"
+          ? "Study request accepted."
+          : "Study request declined.",
+      );
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Could not update the study request.",
+      );
+    }
+  }
+
   async function authorizedFetch(path: string, init?: RequestInit) {
     if (!user || !apiBaseUrl) {
       throw new Error("The backend URL is not configured.");
@@ -392,6 +466,8 @@ export default function Home() {
         setView("profile");
         setSpots([]);
         setBuddies([]);
+        setIncomingRequests([]);
+        setOutgoingRequests([]);
         return;
       }
       if (!profileResponse.ok) throw new Error("Could not load your profile.");
@@ -407,15 +483,19 @@ export default function Home() {
         instagram: profileData.instagram_tag ?? "",
       });
 
-      const [buddyResponse, spotResponse] = await Promise.all([
+      const [buddyResponse, spotResponse, requestsResponse] = await Promise.all([
         fetch(`${apiBaseUrl}/buddies/recommend/${activeUser.uid}`, { headers }),
         fetch(`${apiBaseUrl}/study-spots/`, { headers }),
+        fetch(`${apiBaseUrl}/requests/${activeUser.uid}`, { headers }),
       ]);
-      if (!buddyResponse.ok || !spotResponse.ok) {
+      if (!buddyResponse.ok || !spotResponse.ok || !requestsResponse.ok) {
         throw new Error("Could not load the Study Hub.");
       }
       setBuddies(await buddyResponse.json());
       setSpots(await spotResponse.json());
+      const requestsData = await requestsResponse.json();
+      setIncomingRequests(requestsData.incoming ?? []);
+      setOutgoingRequests(requestsData.outgoing ?? []);
     } catch (error) {
       setAuthError(
         error instanceof Error ? error.message : "Could not load the Study Hub.",
@@ -470,6 +550,8 @@ export default function Home() {
     setUser(null);
     setBuddies([]);
     setSpots([]);
+    setIncomingRequests([]);
+    setOutgoingRequests([]);
     setChatTarget(null);
     setCommentSpot(null);
     setReportTarget(null);
@@ -923,55 +1005,105 @@ export default function Home() {
           )}
           {filteredBuddies.length ? (
             <div className="private-grid">
-              {filteredBuddies.map((buddy) => (
-                <article className="private-card buddy" key={buddy.uid}>
-                  <div className="card-profile">
-                    <span className="profile-initial">
-                      {buddy.full_name?.charAt(0) || "W"}
-                    </span>
-                    <div>
-                      <h2>{buddy.full_name}</h2>
-                      <p>
-                        Year {buddy.year} · {buddy.major}
-                      </p>
+              {filteredBuddies.map((buddy) => {
+                const requestState = getRequestState(buddy.uid);
+                return (
+                  <article className="private-card buddy" key={buddy.uid}>
+                    <div className="card-profile">
+                      <span className="profile-initial">
+                        {buddy.full_name?.charAt(0) || "W"}
+                      </span>
+                      <div>
+                        <h2>{buddy.full_name}</h2>
+                        <p>
+                          Year {buddy.year} · {buddy.major}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <p className="match-reason">{buddy.match_reason}</p>
-                  <div className="tag-row">
-                    {buddy.courses.map((course) => (
-                      <span key={course}>{course}</span>
-                    ))}
-                  </div>
-                  {buddy.bio && <p className="card-description">{buddy.bio}</p>}
-                  <div className="buddy-card-actions">
-                    <button
-                      className="message-button"
-                      type="button"
-                      onClick={() => {
-                        setChatTarget({
-                          uid: buddy.uid,
-                          name: buddy.full_name,
-                        });
-                        setView("messages");
-                      }}
-                    >
-                      Message
-                    </button>
-                    <button
-                      className="outline-button"
-                      type="button"
-                      onClick={() =>
-                        setContactModal({
-                          name: buddy.full_name,
-                          instagram: buddy.instagram_tag ?? null,
-                        })
-                      }
-                    >
-                      Contact
-                    </button>
-                  </div>
-                </article>
-              ))}
+                    <p className="match-reason">{buddy.match_reason}</p>
+                    <div className="tag-row">
+                      {buddy.courses.map((course) => (
+                        <span key={course}>{course}</span>
+                      ))}
+                    </div>
+                    {buddy.availability_slots.length > 0 && (
+                      <div className="tag-row availability-row">
+                        {buddy.availability_slots.map((slot) => (
+                          <span key={slot}>{slot}</span>
+                        ))}
+                      </div>
+                    )}
+                    {buddy.bio && (
+                      <p className="card-description">{buddy.bio}</p>
+                    )}
+                    <div className="buddy-card-actions">
+                      <button
+                        className="message-button"
+                        type="button"
+                        onClick={() => {
+                          setChatTarget({
+                            uid: buddy.uid,
+                            name: buddy.full_name,
+                          });
+                          setView("messages");
+                        }}
+                      >
+                        Message
+                      </button>
+                      {requestState.kind === "accepted" && (
+                        <button
+                          className="outline-button"
+                          type="button"
+                          onClick={() =>
+                            setContactModal({
+                              name: buddy.full_name,
+                              instagram: buddy.instagram_tag ?? null,
+                            })
+                          }
+                        >
+                          Contact
+                        </button>
+                      )}
+                      {requestState.kind === "incoming" && (
+                        <>
+                          <button
+                            className="outline-button"
+                            type="button"
+                            onClick={() =>
+                              respondToRequest(requestState.request, "accepted")
+                            }
+                          >
+                            Accept
+                          </button>
+                          <button
+                            className="outline-button"
+                            type="button"
+                            onClick={() =>
+                              respondToRequest(requestState.request, "declined")
+                            }
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                      {requestState.kind === "outgoing" && (
+                        <button className="outline-button" type="button" disabled>
+                          Request sent
+                        </button>
+                      )}
+                      {requestState.kind === "none" && (
+                        <button
+                          className="outline-button"
+                          type="button"
+                          onClick={() => sendStudyRequest(buddy)}
+                        >
+                          Request to study
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <div className="empty-private">

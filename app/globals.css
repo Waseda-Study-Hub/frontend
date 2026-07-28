@@ -750,12 +750,6 @@ a {
   margin: 6px 0 0;
 }
 
-.match-reason {
-  color: var(--red);
-  font-size: 13px;
-  margin: 22px 0 14px;
-}
-
 .tag-row {
   display: flex;
   flex-wrap: wrap;
@@ -771,6 +765,16 @@ a {
   color: #5f5953;
   font-size: 12px;
   padding: 8px 11px;
+}
+
+.availability-row {
+  margin-top: 8px;
+}
+
+.availability-row span {
+  background: #eef2ef;
+  border-color: #dbe4de;
+  color: #3f5c4e;
 }
 
 .card-description {
@@ -793,6 +797,17 @@ a {
 .outline-button:hover {
   background: var(--ink);
   color: white;
+}
+
+.outline-button:disabled {
+  border-color: #d8d3cb;
+  color: var(--muted);
+  cursor: default;
+}
+
+.outline-button:disabled:hover {
+  background: transparent;
+  color: var(--muted);
 }
 
 .buddy-card-actions {
