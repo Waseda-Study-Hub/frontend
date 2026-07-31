@@ -52,6 +52,22 @@ test("normalizes Gemini output and removes unsupported values", () => {
   assert.equal(intent.summary, "A second-year algorithms partner");
 });
 
+test("keeps complete summaries up to the separate 160-character limit", () => {
+  const summary =
+    "Looking for study buddies taking similar courses who can meet on weekday evenings and prefer quiet, focused sessions.";
+  const intent = normalizeStudyMatchIntent({
+    summary,
+    preferred_years: [],
+    course_terms: ["Algorithms"],
+    major_terms: [],
+    availability_terms: ["weekday evening"],
+    preference_terms: ["quiet"],
+  });
+
+  assert.equal(intent.summary, summary);
+  assert.ok(intent.summary.length > 60);
+});
+
 test("ranks real profiles using weighted structured fields", () => {
   const intent = normalizeStudyMatchIntent({
     summary: "Algorithms student for quiet weekday evenings",

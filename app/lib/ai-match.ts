@@ -33,9 +33,9 @@ const emptyIntent: StudyMatchIntent = {
   preference_terms: [],
 };
 
-function cleanTerm(value: unknown) {
+function cleanTerm(value: unknown, maxLength = 60) {
   if (typeof value !== "string") return "";
-  return value.trim().replace(/\s+/g, " ").slice(0, 60);
+  return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
 
 function cleanTerms(value: unknown, limit: number) {
@@ -76,7 +76,7 @@ export function normalizeStudyMatchIntent(
 
   return {
     summary:
-      cleanTerm(source.summary).slice(0, 160) ||
+      cleanTerm(source.summary, 160) ||
       fallbackSummary.trim().slice(0, 160),
     preferred_years: years,
     course_terms: cleanTerms(source.course_terms, 6),
