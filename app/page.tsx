@@ -7,6 +7,11 @@ import {
   getFirebaseClient,
   getPublicRuntimeConfig,
 } from "./lib/firebase";
+import {
+  hasStudyMatchConstraints,
+  rankBuddies,
+  type StudyMatchIntent,
+} from "./lib/ai-match";
 import type { ReportTarget } from "./lib/reports";
 import { isAllowedWasedaEmail } from "./lib/waseda-auth";
 import ChatPanel, { type ChatTarget } from "./components/chat-panel";
@@ -158,6 +163,11 @@ export default function Home() {
   const [buddyYear, setBuddyYear] = useState("All");
   const [buddyMajorQuery, setBuddyMajorQuery] = useState("");
   const [buddyCourseQuery, setBuddyCourseQuery] = useState("");
+  const [aiMatchQuery, setAiMatchQuery] = useState("");
+  const [aiMatchIntent, setAiMatchIntent] =
+    useState<StudyMatchIntent | null>(null);
+  const [aiMatchLoading, setAiMatchLoading] = useState(false);
+  const [aiMatchError, setAiMatchError] = useState("");
   const [spotFiltersOpen, setSpotFiltersOpen] = useState(false);
   const [spotNameQuery, setSpotNameQuery] = useState("");
   const [spotLocationQuery, setSpotLocationQuery] = useState("");
@@ -294,6 +304,41 @@ export default function Home() {
     buddyYear,
   ]);
 
+  const rankedBuddyResults = useMemo(() => {
+    if (!aiMatchIntent) {
+      return filteredBuddies.map((buddy) => ({
+        buddy,
+        score: 0,
+        reasons: [] as string[],
+      }));
+    }
+
+    const ranked = rankBuddies(filteredBuddies, aiMatchIntent);
+    if (!hasStudyMatchConstraints(aiMatchIntent)) return ranked;
+
+    const relevant = ranked.filter((result) => result.score > 0);
+    return relevant.length ? relevant : ranked;
+  }, [aiMatchIntent, filteredBuddies]);
+
+  const aiMatchHasRelevantResults = Boolean(
+    aiMatchIntent &&
+      hasStudyMatchConstraints(aiMatchIntent) &&
+      rankedBuddyResults.some((result) => result.score > 0),
+  );
+
+  const aiIntentTags = useMemo(() => {
+    if (!aiMatchIntent) return [];
+    return [
+      ...aiMatchIntent.preferred_years.map((year) =>
+        year === 5 ? "Graduate" : `Year ${year}`,
+      ),
+      ...aiMatchIntent.course_terms,
+      ...aiMatchIntent.major_terms,
+      ...aiMatchIntent.availability_terms,
+      ...aiMatchIntent.preference_terms,
+    ].slice(0, 8);
+  }, [aiMatchIntent]);
+
   const buddyYears = useMemo(
     () =>
       Array.from(new Set(buddies.map((buddy) => buddy.year))).sort(
@@ -380,6 +425,50 @@ export default function Home() {
       }
       return next;
     });
+  }
+
+  async function runAiMatch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = aiMatchQuery.trim();
+    if (!user || query.length < 3) return;
+
+    setAiMatchLoading(true);
+    setAiMatchError("");
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/ai-match", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ query }),
+      });
+      const data = (await response.json()) as {
+        intent?: StudyMatchIntent;
+        error?: string;
+      };
+
+      if (!response.ok || !data.intent) {
+        throw new Error(data.error || "AI matching could not finish.");
+      }
+
+      setAiMatchIntent(data.intent);
+    } catch (error) {
+      setAiMatchError(
+        error instanceof Error
+          ? error.message
+          : "AI matching could not finish.",
+      );
+    } finally {
+      setAiMatchLoading(false);
+    }
+  }
+
+  function clearAiMatch() {
+    setAiMatchQuery("");
+    setAiMatchIntent(null);
+    setAiMatchError("");
   }
 
   function getRequestState(buddyUid: string) {
@@ -574,6 +663,7 @@ export default function Home() {
     setChatTarget(null);
     setCommentSpot(null);
     setReportTarget(null);
+    clearAiMatch();
     setView("buddies");
   }
 
@@ -1094,10 +1184,75 @@ export default function Home() {
 
       {!dataLoading && view === "buddies" && !profileMissing && (
         <section className="private-panel">
+          <form className="ai-match-panel" onSubmit={runAiMatch}>
+            <div className="ai-match-heading">
+              <div>
+                <p className="eyebrow">AI Study Match</p>
+                <h2>Describe your ideal study buddy.</h2>
+              </div>
+              <span className="ai-provider-badge">Gemini</span>
+            </div>
+            <div className="ai-match-controls">
+              <label className="sr-only" htmlFor="ai-match-query">
+                Describe the study buddy you want to find
+              </label>
+              <input
+                id="ai-match-query"
+                value={aiMatchQuery}
+                onChange={(event) => setAiMatchQuery(event.target.value)}
+                placeholder="Algorithms student for quiet weekday evening sessions"
+                maxLength={400}
+                aria-describedby="ai-match-privacy"
+              />
+              <button
+                className="button primary"
+                type="submit"
+                disabled={aiMatchLoading || aiMatchQuery.trim().length < 3}
+              >
+                {aiMatchLoading ? "Understanding…" : "Find with AI"}
+              </button>
+            </div>
+            <p className="ai-match-privacy" id="ai-match-privacy">
+              Only this search sentence is sent to Gemini. Profiles are ranked
+              inside Study Hub.
+            </p>
+            {aiMatchError && (
+              <p className="ai-match-error" role="alert">
+                {aiMatchError}
+              </p>
+            )}
+            {aiMatchIntent && (
+              <div className="ai-match-result" aria-live="polite">
+                <div>
+                  <span>Understood as</span>
+                  <strong>{aiMatchIntent.summary}</strong>
+                  {aiIntentTags.length > 0 && (
+                    <div className="ai-intent-tags" aria-label="AI search terms">
+                      {aiIntentTags.map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  {!aiMatchHasRelevantResults &&
+                    hasStudyMatchConstraints(aiMatchIntent) && (
+                      <small>
+                        No profile includes those details yet, so regular
+                        recommendations are shown.
+                      </small>
+                    )}
+                </div>
+                <button type="button" onClick={clearAiMatch}>
+                  Clear AI search
+                </button>
+              </div>
+            )}
+          </form>
           <div className="private-toolbar filter-toolbar">
             <div className="filter-summary">
-              <span>Study buddy results</span>
-              <strong>{filteredBuddies.length} matches</strong>
+              <span>
+                {aiMatchIntent ? "AI-ranked buddy results" : "Study buddy results"}
+              </span>
+              <strong>{rankedBuddyResults.length} matches</strong>
             </div>
             <button
               className={`filter-toggle ${
@@ -1179,9 +1334,9 @@ export default function Home() {
               </button>
             </section>
           )}
-          {filteredBuddies.length ? (
+          {rankedBuddyResults.length ? (
             <div className="private-grid">
-              {filteredBuddies.map((buddy) => {
+              {rankedBuddyResults.map(({ buddy, reasons }) => {
                 const requestState = getRequestState(buddy.uid);
                 return (
                   <article className="private-card buddy" key={buddy.uid}>
@@ -1196,7 +1351,14 @@ export default function Home() {
                         </p>
                       </div>
                     </div>
-                    <p className="match-reason">{buddy.match_reason}</p>
+                    {aiMatchIntent && reasons.length > 0 ? (
+                      <p className="ai-card-reason">
+                        <span>AI match</span>
+                        {reasons.join(" · ")}
+                      </p>
+                    ) : (
+                      <p className="match-reason">{buddy.match_reason}</p>
+                    )}
                     <div className="tag-row">
                       {buddy.courses.map((course) => (
                         <span key={course}>{course}</span>
